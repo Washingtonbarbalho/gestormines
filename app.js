@@ -558,15 +558,16 @@ async function checkSessionEnd(isManualStop = false) {
     return false;
 }
 
+// (NOVA CORREÇÃO AQUI)
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
         sessionEndTitle.textContent = "META ATINGIDA!";
-        // (CORREÇÃO) Ícone embutido
-        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2m-6-6v6m0 6a6 6 0 0 1-6-6v-6a6 6 0 0 1 6 6v6a6 6 0 0 1 6 6v-6a6 6 0 0 1-6 6v-6z"></path></svg>';
+        // (CORREÇÃO) Ícone de Estrela (Stop Win), alinhado com o tema do jogo
+        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-yellow-400 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>';
     } else {
         sessionEndTitle.textContent = "LIMITE ATINGIDO!";
-        // (CORREÇÃO) Ícone embutido
-        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+        // (CORREÇÃO) Ícone de Escudo (Stop Loss)
+        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>';
     }
     
     if (showCooldown) {
