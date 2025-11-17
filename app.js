@@ -558,16 +558,16 @@ async function checkSessionEnd(isManualStop = false) {
     return false;
 }
 
-// (NOVA CORREÇÃO AQUI)
+// (CORREÇÃO DE TAMANHO AQUI)
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
         sessionEndTitle.textContent = "META ATINGIDA!";
-        // (CORREÇÃO) Ícone de Estrela (Stop Win), alinhado com o tema do jogo
-        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-yellow-400 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>';
+        // (CORREÇÃO) Ícone de Estrela (Stop Win) com w-20 h-20 (5rem)
+        sessionEndIcon.innerHTML = '<svg class="w-20 h-20 text-yellow-400 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>';
     } else {
         sessionEndTitle.textContent = "LIMITE ATINGIDO!";
-        // (CORREÇÃO) Ícone de Escudo (Stop Loss)
-        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>';
+        // (CORREÇÃO) Ícone de Escudo (Stop Loss) com w-20 h-20 (5rem)
+        sessionEndIcon.innerHTML = '<svg class="w-20 h-20 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>';
     }
     
     if (showCooldown) {
