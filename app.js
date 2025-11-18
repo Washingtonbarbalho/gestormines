@@ -43,7 +43,6 @@ const db = getFirestore(app);
 // --- Constantes ---
 const ADMIN_EMAIL = "washington.wn8@gmail.com";
 const COOLDOWN_MINUTES = 60;
-// (NOVO) Dicionário de tradução
 const STRATEGY_NAMES = {
     low: "Baixo Risco",
     balanced: "Equilibrada",
@@ -131,7 +130,6 @@ const sessionEndBank = document.getElementById('sessionEndBank');
 const cooldownMessage = document.getElementById('cooldownMessage');
 const restartButton = document.getElementById('restartButton');
 const winInputModal = document.getElementById('winInputModal'); 
-// (ALTERADO) ID do input
 const returnInput = document.getElementById('returnInput');
 const confirmWinButton = document.getElementById('confirmWinButton');
 const cancelWinButton = document.getElementById('cancelWinButton');
@@ -162,7 +160,6 @@ function showView(viewId) {
     allAppViews.forEach(view => view.classList.add('hidden'));
     document.getElementById(viewId).classList.remove('hidden');
     
-    // Atualiza o título do header e fecha o menu
     if (viewId === 'setupView') viewTitle.textContent = 'Diário de Sessão';
     if (viewId === 'dashboardView') viewTitle.textContent = 'Dashboard';
     if (viewId === 'adminView') viewTitle.textContent = 'Gerenciar Usuários';
@@ -208,6 +205,40 @@ function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
 }
 
+// (NOVO) Função para calcular Meta Sugerida
+function calculateSuggestedGoal() {
+    const bankroll = parseFloat(bankrollInput.value);
+    const riskLevel = parseFloat(sessionRiskLevelSelect.value); // ex: 0.7 (para com 70% da banca, arrisca 30%)
+    const strategy = strategySelect.value;
+    
+    if (isNaN(bankroll) || bankroll <= 0) return;
+
+    // Calcula o valor que o usuário está disposto a perder (Stop Loss Amount)
+    // Ex: Banca 100, Risco 0.7 -> Stop no 70 -> Arriscando 30.
+    const riskAmount = bankroll * (1 - riskLevel);
+
+    // Define um multiplicador de Risco/Retorno baseado na estratégia
+    // Estratégias mais arriscadas buscam lucros maiores para valer o risco
+    let riskRewardRatio = 1.0; // Padrão 1:1 (arrisca 30 pra ganhar 30)
+
+    if (strategy === 'low') {
+        riskRewardRatio = 0.5; // Conservador: Busca 50% do valor arriscado
+    } else if (strategy === 'balanced') {
+        riskRewardRatio = 1.0; // Equilibrado: Busca 100% do valor arriscado
+    } else if (strategy === 'high') {
+        riskRewardRatio = 1.5; // Alto Risco: Busca 150% do valor arriscado
+    }
+
+    const targetProfit = riskAmount * riskRewardRatio;
+    const suggestedGoal = bankroll + targetProfit;
+
+    // Arredonda e atualiza o input (sem bloquear a edição)
+    // Apenas atualiza se o campo estiver vazio ou se o usuário acabou de mudar parâmetros principais
+    // Para evitar sobrescrever algo que o usuário digitou manualmente, poderíamos checar foco,
+    // mas aqui vamos apenas sugerir diretamente.
+    goalBankInput.value = suggestedGoal.toFixed(2);
+}
+
 // --- FUNÇÕES DE AUTENTICAÇÃO E DADOS ---
 
 // Listener principal da aplicação
@@ -222,7 +253,6 @@ onAuthStateChanged(auth, async (user) => {
             userEmailDisplay.textContent = currentUserData.email;
 
             if (currentUserData.access === 'pending') {
-                // (CORREÇÃO) Usuário pendente, esconde UI principal
                 showView('pendingView');
                 appContent.classList.remove('md:ml-64'); 
                 sidebar.classList.add('hidden'); 
@@ -231,7 +261,6 @@ onAuthStateChanged(auth, async (user) => {
                 appScreen.classList.remove('hidden');
                 loginScreen.classList.add('hidden');
             } else if (currentUserData.access === 'approved') {
-                // (CORREÇÃO) Usuário aprovado, mostra UI principal
                 appContent.classList.add('md:ml-64'); 
                 sidebar.classList.remove('hidden'); 
                 hamburgerButton.classList.remove('hidden'); 
@@ -264,7 +293,6 @@ onAuthStateChanged(auth, async (user) => {
         appScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
         
-        // (CORREÇÃO) Limpa os campos de login
         loginEmailInput.value = '';
         loginPasswordInput.value = '';
         authErrorBox.classList.add('hidden');
@@ -274,11 +302,11 @@ onAuthStateChanged(auth, async (user) => {
     loadingScreen.classList.add('hidden');
 });
 
-// Configura o App para o usuário logado
 function setupAppForUser() {
     const lastBank = currentUserData.lastBankroll || 100;
     bankrollInput.value = lastBank.toFixed(2);
     lastBankrollDisplay.textContent = formatBRL(lastBank);
+    calculateSuggestedGoal(); // Calcula sugestão inicial
     
     if (currentUserData.role === 'admin') {
         navAdminLink.classList.remove('hidden');
@@ -305,22 +333,17 @@ async function savePlay(playData) {
     await addDoc(playsCollection, playData);
 }
 
-// (ALTERADO) Lógica de data do Dashboard REVERTIDA para a original (corrigida)
 async function loadDashboard() {
     dashboardLoading.classList.remove('hidden');
     dashboardStats.classList.add('hidden');
     noDashboardData.classList.add('hidden');
     
-    // (REVERTIDO E CORRIGIDO) Lógica de data original para evitar problemas de fuso
-    // Pega a string 'YYYY-MM-DD' e força para data local
     const [startY, startM, startD] = dateFilterStart.value.split('-').map(Number);
-    // new Date(Y, M-1, D) cria uma data à meia-noite *local*
     let startDate = new Date(startY, startM - 1, startD); 
     
     const [endY, endM, endD] = dateFilterEnd.value.split('-').map(Number);
     let endDate = new Date(endY, endM - 1, endD); 
     
-    // Define para o *fim* do dia selecionado, no fuso local
     endDate.setHours(23, 59, 59, 999); 
     
     const startTimestamp = Timestamp.fromDate(startDate);
@@ -355,7 +378,6 @@ async function loadDashboard() {
         return;
     }
 
-    // Processar os dados
     let totalProfit = 0;
     let totalBet = 0;
     let wins = 0;
@@ -383,7 +405,6 @@ async function loadDashboard() {
         }
     });
 
-    // Encontrar melhor/pior estratégia
     let bestStrat = { name: 'N/A', profit: -Infinity };
     let worstStrat = { name: 'N/A', profit: Infinity };
 
@@ -398,14 +419,12 @@ async function loadDashboard() {
         }
     }
 
-    // Exibir KPIs
     kpiTotalProfit.textContent = formatBRL(totalProfit);
     kpiTotalProfit.className = `kpi-value ${totalProfit >= 0 ? 'text-gain' : 'text-loss'}`;
     kpiTotalBet.textContent = formatBRL(totalBet);
     kpiWinRate.textContent = `${(wins / allPlays.length * 100).toFixed(0)}%`;
     kpiTotalPlays.textContent = allPlays.length;
     
-    // (CORREÇÃO) Usar o dicionário de tradução
     kpiBestStrategy.textContent = STRATEGY_NAMES[bestStrat.name] || 'N/A';
     kpiBestStrategyProfit.textContent = formatBRL(bestStrat.profit);
     kpiWorstStrategy.textContent = STRATEGY_NAMES[worstStrat.name] || 'N/A';
@@ -415,7 +434,6 @@ async function loadDashboard() {
     dashboardStats.classList.remove('hidden');
 }
 
-// (ALTERADO) Lógica de data do Dashboard REVERTIDA para a original
 function updateDashboardDates() {
     const preset = dateFilterPresets.value;
     const endDate = new Date();
@@ -428,7 +446,6 @@ function updateDashboardDates() {
     } else if (preset === '90') {
         startDate.setDate(endDate.getDate() - 90);
     } else if (preset === 'custom') {
-        // (REVERTIDO) Habilita a edição
         dateFilterStart.disabled = false;
         dateFilterEnd.disabled = false;
         return;
@@ -437,13 +454,11 @@ function updateDashboardDates() {
     dateFilterStart.value = formatDateForInput(startDate);
     dateFilterEnd.value = formatDateForInput(endDate);
     
-    // (REVERTIDO) Desabilita a edição para presets
     dateFilterStart.disabled = true;
     dateFilterEnd.disabled = true;
 }
 
 async function loadAdminUsers() {
-    // (Função sem alteração)
     adminUserTableBody.innerHTML = '';
     noUsers.classList.add('hidden');
     const usersCollection = collection(db, "users");
@@ -480,7 +495,6 @@ function createBoard() {
         const cell = document.createElement('div');
         cell.id = `cell-${r}-${c}`;
         cell.className = 'grid-cell';
-        // (CORREÇÃO) Adiciona o círculo interno
         cell.innerHTML = '<div class="grid-cell-inner"></div>';
         gameBoard.appendChild(cell);
     }}
@@ -509,7 +523,6 @@ function generateIndications() {
         const cell = document.getElementById(`cell-${coord}`);
         if (cell) { 
             cell.classList.add('indicated-cell'); 
-            // (CORREÇÃO) Adiciona o ícone de estrela embutido
             cell.innerHTML = `<svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>`;
         }
     });
@@ -536,7 +549,6 @@ async function checkSessionEnd(isManualStop = false) {
     else if (isManualStop) result = "Sessão Encerrada";
     
     if (result) {
-        // Atualiza o documento da SESSÃO com os dados finais
         const sessionDocRef = doc(db, "users", currentUser.uid, "sessions", currentSessionId);
         await updateDoc(sessionDocRef, {
             result: result,
@@ -565,7 +577,6 @@ async function checkSessionEnd(isManualStop = false) {
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
         sessionEndTitle.textContent = "META ATINGIDA!";
-        // (ALTERADO) Ícone de troféu substituído por ícone de 'Alvo' (Target)
         sessionEndIcon.innerHTML = `
             <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -574,7 +585,6 @@ function showSessionEnd(didWin, showCooldown) {
             </svg>`;
     } else {
         sessionEndTitle.textContent = "LIMITE ATINGIDO!";
-        // Ícone de escudo
         sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
     }
     
@@ -589,7 +599,6 @@ function showSessionEnd(didWin, showCooldown) {
 }
 
 function generateNewRound() {
-    // (Lógica de geração de jogada... sem alterações)
     if (!lastBetWasWin && currentStrategy !== 'low') {
         strategyTitle.textContent = "Jogada de Recuperação";
         if (currentStrategy === 'high') currentStrategy = 'balanced';
@@ -640,9 +649,7 @@ function generateNewRound() {
 }
 
 // --- Event Listeners ---
-// (Sem alterações na lógica dos listeners)
 
-// (Login/Signup)
 document.getElementById('showSignup').addEventListener('click', (e) => {
     e.preventDefault();
     loginForm.classList.add('hidden');
@@ -716,7 +723,11 @@ signupForm.addEventListener('submit', async (e) => {
     signupButton.textContent = "Criar Conta";
 });
 
-// (Sidebar e Navegação)
+// (NOVO) Listeners para recalcular meta
+bankrollInput.addEventListener('input', calculateSuggestedGoal);
+sessionRiskLevelSelect.addEventListener('change', calculateSuggestedGoal);
+strategySelect.addEventListener('change', calculateSuggestedGoal);
+
 hamburgerButton.addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
 
@@ -744,13 +755,11 @@ document.getElementById('navSair').addEventListener('click', (e) => {
     signOut(auth);
 });
 
-// (CORREÇÃO) Botão de Sair da tela de Pendentes
 pendingLogoutButton.addEventListener('click', (e) => {
     e.preventDefault();
     signOut(auth);
 });
 
-// (Início do Jogo)
 startButton.addEventListener('click', async () => {
     const bankroll = parseFloat(bankrollInput.value);
     const goal = parseFloat(goalBankInput.value);
@@ -759,7 +768,6 @@ startButton.addEventListener('click', async () => {
     if (isNaN(bankroll) || bankroll <= 0) { showError("Banca inicial inválida."); return; }
     if (isNaN(goal) || goal <= bankroll) { showError("A Meta de Ganhos deve ser maior que a banca inicial."); return; }
     
-    // Verifica Cooldown
     startButton.disabled = true;
     startButton.textContent = "Verificando...";
     const profile = await getUserProfile(currentUser.uid);
@@ -823,8 +831,6 @@ openGameButton.addEventListener('click', () => {
     if(sessionGameLink) { window.open(sessionGameLink, '_blank'); }
 });
 
-// (Controles do Jogo)
-// (Lógica de "Valor Total" mantida)
 wonButton.addEventListener('click', () => {
     returnInput.value = ''; 
     winErrorBox.classList.add('hidden'); 
@@ -857,18 +863,15 @@ lostButton.addEventListener('click', async () => {
     if (!await checkSessionEnd()) generateNewRound();
 });
 
-// (Lógica de "Valor Total" mantida)
 confirmWinButton.addEventListener('click', async () => {
     const totalReturn = parseFloat(returnInput.value);
     
-    // Validação: O retorno não pode ser menor que a aposta
     if (isNaN(totalReturn) || totalReturn < currentBetAmount) {
         winErrorBox.textContent = `Valor inválido. Deve ser pelo menos ${formatBRL(currentBetAmount)}.`;
         winErrorBox.classList.remove('hidden');
         return;
     }
     
-    // Calcula o lucro
     const profit = totalReturn - currentBetAmount;
     
     winErrorBox.classList.add('hidden');
@@ -877,7 +880,6 @@ confirmWinButton.addEventListener('click', async () => {
     const betAmount = currentBetAmount;
     const bankrollBefore = currentBankroll;
     
-    // Adiciona apenas o lucro à banca
     currentBankroll += profit;
     lastBetWasWin = true;
     
@@ -886,7 +888,7 @@ confirmWinButton.addEventListener('click', async () => {
         userId: currentUser.uid, 
         result: 'ganho',
         betAmount: betAmount,
-        profit: profit, // Salva o lucro calculado
+        profit: profit, 
         loss: 0,
         strategy: currentStrategy,
         bombs: currentBombs,
@@ -904,7 +906,7 @@ cancelWinButton.addEventListener('click', () => {
 });
 
 backButton.addEventListener('click', async () => {
-    await checkSessionEnd(true); // Encerra manually
+    await checkSessionEnd(true); 
     setupAppForUser(); 
     showView('setupView');
 });
@@ -915,11 +917,9 @@ restartButton.addEventListener('click', () => {
     showView('setupView');
 });
 
-// Listeners do Dashboard (sem alteração)
 loadDashboardButton.addEventListener('click', loadDashboard);
 dateFilterPresets.addEventListener('change', updateDashboardDates);
 
-// (Listener Tela Admin)
 adminUserTableBody.addEventListener('click', async (e) => {
     const target = e.target;
     const uid = target.dataset.uid;
@@ -938,7 +938,5 @@ adminUserTableBody.addEventListener('click', async (e) => {
     }
 });
 
-// Inicializa o tabuleiro
 createBoard();
-// Inicializa as datas do dashboard
 updateDashboardDates();
