@@ -131,7 +131,8 @@ const sessionEndBank = document.getElementById('sessionEndBank');
 const cooldownMessage = document.getElementById('cooldownMessage');
 const restartButton = document.getElementById('restartButton');
 const winInputModal = document.getElementById('winInputModal'); 
-const profitInput = document.getElementById('profitInput');
+// (ALTERADO) ID do input
+const returnInput = document.getElementById('returnInput');
 const confirmWinButton = document.getElementById('confirmWinButton');
 const cancelWinButton = document.getElementById('cancelWinButton');
 const winErrorBox = document.getElementById('winErrorBox');
@@ -304,23 +305,18 @@ async function savePlay(playData) {
     await addDoc(playsCollection, playData);
 }
 
-// (CORREÇÃO) Lógica atualizada do Dashboard com correção de fuso
+// (REVERTIDO) Lógica do Dashboard
 async function loadDashboard() {
     dashboardLoading.classList.remove('hidden');
     dashboardStats.classList.add('hidden');
     noDashboardData.classList.add('hidden');
     
-    // (CORREÇÃO DE FUSO HORÁRIO)
-    // Pega a string 'YYYY-MM-DD' e força para data local
-    const [startY, startM, startD] = dateFilterStart.value.split('-').map(Number);
-    // new Date(Y, M-1, D) cria uma data à meia-noite *local*
-    let startDate = new Date(startY, startM - 1, startD); 
+    // (REVERTIDO) Pega as datas dos inputs e força o fuso local
+    let startDate = new Date(dateFilterStart.value);
+    startDate.setHours(0, 0, 0, 0); // Início do dia local
     
-    const [endY, endM, endD] = dateFilterEnd.value.split('-').map(Number);
-    let endDate = new Date(endY, endM - 1, endD); 
-    
-    // Define para o *fim* do dia selecionado, no fuso local
-    endDate.setHours(23, 59, 59, 999); 
+    let endDate = new Date(dateFilterEnd.value);
+    endDate.setHours(23, 59, 59, 999); // Fim do dia local
     
     const startTimestamp = Timestamp.fromDate(startDate);
     const endTimestamp = Timestamp.fromDate(endDate);
@@ -414,7 +410,7 @@ async function loadDashboard() {
     dashboardStats.classList.remove('hidden');
 }
 
-// (CORREÇÃO) Atualiza os inputs de data baseado no preset
+// (REVERTIDO) Atualiza os inputs de data baseado no preset
 function updateDashboardDates() {
     const preset = dateFilterPresets.value;
     const endDate = new Date();
@@ -427,6 +423,7 @@ function updateDashboardDates() {
     } else if (preset === '90') {
         startDate.setDate(endDate.getDate() - 90);
     } else if (preset === 'custom') {
+        // (REVERTIDO) Não desabilita mais
         dateFilterStart.disabled = false;
         dateFilterEnd.disabled = false;
         return;
@@ -434,8 +431,10 @@ function updateDashboardDates() {
     
     dateFilterStart.value = formatDateForInput(startDate);
     dateFilterEnd.value = formatDateForInput(endDate);
-    dateFilterStart.disabled = true;
-    dateFilterEnd.disabled = true;
+    
+    // (REVERTIDO) Não desabilita mais
+    dateFilterStart.disabled = false;
+    dateFilterEnd.disabled = false;
 }
 
 async function loadAdminUsers() {
@@ -561,16 +560,18 @@ async function checkSessionEnd(isManualStop = false) {
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
         sessionEndTitle.textContent = "META ATINGIDA!";
-        // (CORREÇÃO) Ícone do troféu atualizado para o modelo solicitado
+        // (ALTERADO) Ícone de troféu simples e funcional (Bootstrap Icons)
         sessionEndIcon.innerHTML = `
-            <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19.5 2h-15C3.67 2 3 2.67 3 3.5v3C3 7.33 3.67 8 4.5 8H6v1c0 3.86 3.14 7 7 7s7-3.14 7-7V8h1.5c.83 0 1.5-.67 1.5-1.5v-3C21 2.67 20.33 2 19.5 2zM6 6.5V4h12v2.5H6z"/>
-                <path d="M10 17v5h4v-5h-4z"/>
-                <path d="M12 16c-2.21 0-4-1.79-4-4h8c0 2.21-1.79 4-4 4z"/>
+            <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M.5 1a.5.5 0 0 1 .5.5V3h14V1.5a.5.5 0 0 1 .5-.5h.5c.276 0 .5.224.5.5v2.219c0 .28-.224.5-.5.5h-1a.5.5 0 0 1-.5-.5V1.5a.5.5 0 0 1 .5-.5h.5z"/>
+              <path d="M.5 1a.5.5 0 0 1 .5.5V3h14V1.5a.5.5 0 0 1 .5-.5h.5c.276 0 .5.224.5.5v2.219c0 .28-.224.5-.5.5h-1a.5.5 0 0 1-.5-.5V1.5a.5.5 0 0 1 .5-.5h.5zM1 3.091C1 2.51 1.506 2 2.182 2h11.636C14.494 2 15 2.51 15 3.091v2.162c0 .58-.506 1.048-1.182 1.048H2.182C1.506 6.301 1 5.79 1 5.253V3.091z"/>
+              <path d="M12 2H4v1.091c0 .58.506 1.048 1.182 1.048h5.636C11.494 4.139 12 3.67 12 3.091V2z"/>
+              <path d="M6 7.5c0 .552.448 1 1 1h2c.552 0 1-.448 1-1V5H6v2.5z"/>
+              <path d="M8 16L6 9h4l-2 7z"/>
             </svg>`;
     } else {
         sessionEndTitle.textContent = "LIMITE ATINGIDO!";
-        // (CORREÇÃO) Ícone embutido
+        // Ícone de escudo
         sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
     }
     
@@ -820,11 +821,12 @@ openGameButton.addEventListener('click', () => {
 });
 
 // (Controles do Jogo)
+// (ALTERADO) Listener do botão Ganhei
 wonButton.addEventListener('click', () => {
-    profitInput.value = ''; 
+    returnInput.value = ''; // Limpa o input de retorno
     winErrorBox.classList.add('hidden'); 
     winInputModal.classList.remove('hidden'); 
-    profitInput.focus(); 
+    returnInput.focus(); // Foca no input de retorno
 });
 
 lostButton.addEventListener('click', async () => {
@@ -852,18 +854,27 @@ lostButton.addEventListener('click', async () => {
     if (!await checkSessionEnd()) generateNewRound();
 });
 
+// (ALTERADO) Listener de confirmação de ganho
 confirmWinButton.addEventListener('click', async () => {
-    const profit = parseFloat(profitInput.value);
-    if (isNaN(profit) || profit < 0) { 
+    const totalReturn = parseFloat(returnInput.value);
+    
+    // Validação: O retorno não pode ser menor que a aposta
+    if (isNaN(totalReturn) || totalReturn < currentBetAmount) {
+        winErrorBox.textContent = `Valor inválido. Deve ser pelo menos ${formatBRL(currentBetAmount)}.`;
         winErrorBox.classList.remove('hidden');
         return;
     }
+    
+    // Calcula o lucro
+    const profit = totalReturn - currentBetAmount;
+    
     winErrorBox.classList.add('hidden');
     winInputModal.classList.add('hidden');
     
     const betAmount = currentBetAmount;
     const bankrollBefore = currentBankroll;
     
+    // Adiciona apenas o lucro à banca
     currentBankroll += profit;
     lastBetWasWin = true;
     
@@ -872,7 +883,7 @@ confirmWinButton.addEventListener('click', async () => {
         userId: currentUser.uid, 
         result: 'ganho',
         betAmount: betAmount,
-        profit: profit,
+        profit: profit, // Salva o lucro calculado
         loss: 0,
         strategy: currentStrategy,
         bombs: currentBombs,
@@ -901,7 +912,7 @@ restartButton.addEventListener('click', () => {
     showView('setupView');
 });
 
-// (CORREÇÃO) Listeners do Dashboard
+// Listeners do Dashboard (sem alteração)
 loadDashboardButton.addEventListener('click', loadDashboard);
 dateFilterPresets.addEventListener('change', updateDashboardDates);
 
