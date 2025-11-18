@@ -561,8 +561,13 @@ async function checkSessionEnd(isManualStop = false) {
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
         sessionEndTitle.textContent = "META ATINGIDA!";
-        // (CORREÇÃO) Ícone embutido
-        sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2m-6-6v6m0 6a6 6 0 0 1-6-6v-6a6 6 0 0 1 6 6v6a6 6 0 0 1 6 6v-6a6 6 0 0 1-6 6v-6z"></path></svg>';
+        // (CORREÇÃO) Ícone do troféu atualizado para o modelo solicitado
+        sessionEndIcon.innerHTML = `
+            <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19.5 2h-15C3.67 2 3 2.67 3 3.5v3C3 7.33 3.67 8 4.5 8H6v1c0 3.86 3.14 7 7 7s7-3.14 7-7V8h1.5c.83 0 1.5-.67 1.5-1.5v-3C21 2.67 20.33 2 19.5 2zM6 6.5V4h12v2.5H6z"/>
+                <path d="M10 17v5h4v-5h-4z"/>
+                <path d="M12 16c-2.21 0-4-1.79-4-4h8c0 2.21-1.79 4-4 4z"/>
+            </svg>`;
     } else {
         sessionEndTitle.textContent = "LIMITE ATINGIDO!";
         // (CORREÇÃO) Ícone embutido
