@@ -305,18 +305,23 @@ async function savePlay(playData) {
     await addDoc(playsCollection, playData);
 }
 
-// (REVERTIDO) Lógica do Dashboard
+// (ALTERADO) Lógica de data do Dashboard REVERTIDA para a original (corrigida)
 async function loadDashboard() {
     dashboardLoading.classList.remove('hidden');
     dashboardStats.classList.add('hidden');
     noDashboardData.classList.add('hidden');
     
-    // (REVERTIDO) Pega as datas dos inputs e força o fuso local
-    let startDate = new Date(dateFilterStart.value);
-    startDate.setHours(0, 0, 0, 0); // Início do dia local
+    // (REVERTIDO E CORRIGIDO) Lógica de data original para evitar problemas de fuso
+    // Pega a string 'YYYY-MM-DD' e força para data local
+    const [startY, startM, startD] = dateFilterStart.value.split('-').map(Number);
+    // new Date(Y, M-1, D) cria uma data à meia-noite *local*
+    let startDate = new Date(startY, startM - 1, startD); 
     
-    let endDate = new Date(dateFilterEnd.value);
-    endDate.setHours(23, 59, 59, 999); // Fim do dia local
+    const [endY, endM, endD] = dateFilterEnd.value.split('-').map(Number);
+    let endDate = new Date(endY, endM - 1, endD); 
+    
+    // Define para o *fim* do dia selecionado, no fuso local
+    endDate.setHours(23, 59, 59, 999); 
     
     const startTimestamp = Timestamp.fromDate(startDate);
     const endTimestamp = Timestamp.fromDate(endDate);
@@ -410,7 +415,7 @@ async function loadDashboard() {
     dashboardStats.classList.remove('hidden');
 }
 
-// (REVERTIDO) Atualiza os inputs de data baseado no preset
+// (ALTERADO) Lógica de data do Dashboard REVERTIDA para a original
 function updateDashboardDates() {
     const preset = dateFilterPresets.value;
     const endDate = new Date();
@@ -423,7 +428,7 @@ function updateDashboardDates() {
     } else if (preset === '90') {
         startDate.setDate(endDate.getDate() - 90);
     } else if (preset === 'custom') {
-        // (REVERTIDO) Não desabilita mais
+        // (REVERTIDO) Habilita a edição
         dateFilterStart.disabled = false;
         dateFilterEnd.disabled = false;
         return;
@@ -432,9 +437,9 @@ function updateDashboardDates() {
     dateFilterStart.value = formatDateForInput(startDate);
     dateFilterEnd.value = formatDateForInput(endDate);
     
-    // (REVERTIDO) Não desabilita mais
-    dateFilterStart.disabled = false;
-    dateFilterEnd.disabled = false;
+    // (REVERTIDO) Desabilita a edição para presets
+    dateFilterStart.disabled = true;
+    dateFilterEnd.disabled = true;
 }
 
 async function loadAdminUsers() {
@@ -560,14 +565,12 @@ async function checkSessionEnd(isManualStop = false) {
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
         sessionEndTitle.textContent = "META ATINGIDA!";
-        // (ALTERADO) Ícone de troféu simples e funcional (Bootstrap Icons)
+        // (ALTERADO) Ícone de troféu substituído por ícone de 'Alvo' (Target)
         sessionEndIcon.innerHTML = `
-            <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M.5 1a.5.5 0 0 1 .5.5V3h14V1.5a.5.5 0 0 1 .5-.5h.5c.276 0 .5.224.5.5v2.219c0 .28-.224.5-.5.5h-1a.5.5 0 0 1-.5-.5V1.5a.5.5 0 0 1 .5-.5h.5z"/>
-              <path d="M.5 1a.5.5 0 0 1 .5.5V3h14V1.5a.5.5 0 0 1 .5-.5h.5c.276 0 .5.224.5.5v2.219c0 .28-.224.5-.5.5h-1a.5.5 0 0 1-.5-.5V1.5a.5.5 0 0 1 .5-.5h.5zM1 3.091C1 2.51 1.506 2 2.182 2h11.636C14.494 2 15 2.51 15 3.091v2.162c0 .58-.506 1.048-1.182 1.048H2.182C1.506 6.301 1 5.79 1 5.253V3.091z"/>
-              <path d="M12 2H4v1.091c0 .58.506 1.048 1.182 1.048h5.636C11.494 4.139 12 3.67 12 3.091V2z"/>
-              <path d="M6 7.5c0 .552.448 1 1 1h2c.552 0 1-.448 1-1V5H6v2.5z"/>
-              <path d="M8 16L6 9h4l-2 7z"/>
+            <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="6"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
             </svg>`;
     } else {
         sessionEndTitle.textContent = "LIMITE ATINGIDO!";
@@ -821,12 +824,12 @@ openGameButton.addEventListener('click', () => {
 });
 
 // (Controles do Jogo)
-// (ALTERADO) Listener do botão Ganhei
+// (Lógica de "Valor Total" mantida)
 wonButton.addEventListener('click', () => {
-    returnInput.value = ''; // Limpa o input de retorno
+    returnInput.value = ''; 
     winErrorBox.classList.add('hidden'); 
     winInputModal.classList.remove('hidden'); 
-    returnInput.focus(); // Foca no input de retorno
+    returnInput.focus(); 
 });
 
 lostButton.addEventListener('click', async () => {
@@ -854,7 +857,7 @@ lostButton.addEventListener('click', async () => {
     if (!await checkSessionEnd()) generateNewRound();
 });
 
-// (ALTERADO) Listener de confirmação de ganho
+// (Lógica de "Valor Total" mantida)
 confirmWinButton.addEventListener('click', async () => {
     const totalReturn = parseFloat(returnInput.value);
     
