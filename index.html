@@ -297,10 +297,12 @@
     <div id="winInputModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
         <div class="card p-6 sm:p-8 text-center space-y-4 max-w-sm w-full">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Parabéns!</h2>
-            <p class="text-blue-200">Insira o valor do seu **LUCRO** nesta jogada.</p>
+            <!-- (ALTERADO) Texto do modal -->
+            <p class="text-blue-200">Insira o **VALOR TOTAL** que você recebeu (retorno).</p>
             <div>
-                <label for="profitInput" class="block text-sm font-medium text-blue-200 mb-2">Lucro Obtido (Ex: 2.20):</label>
-                <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-300 text-lg">R$</span><input type="number" id="profitInput" class="form-input w-full pl-12" placeholder="0.00"></div>
+                <!-- (ALTERADO) Label e ID do input -->
+                <label for="returnInput" class="block text-sm font-medium text-blue-200 mb-2">Valor Total Recebido (Ex: 4.20):</label>
+                <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-300 text-lg">R$</span><input type="number" id="returnInput" class="form-input w-full pl-12" placeholder="0.00"></div>
                 <div id="winErrorBox" class="hidden text-red-400 text-sm mt-2">Por favor, insira um valor positivo.</div>
             </div>
             <div class="grid grid-cols-2 gap-3 pt-2"><button id="cancelWinButton" class="btn btn-secondary">Cancelar</button><button id="confirmWinButton" class="btn btn-green">Confirmar</button></div>
@@ -312,5 +314,3 @@
     <script type="module" src="app.js"></script>
 </body>
 </html>
-
-
