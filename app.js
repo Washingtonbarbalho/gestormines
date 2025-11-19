@@ -48,8 +48,7 @@ const STRATEGY_NAMES = {
     'N/A': 'N/A'
 };
 
-// (NOVO) Tabela de Multiplicadores Oficiais Spribe (Minas 1-20, Estrelas 1-8)
-// O índice externo é o número de BOMBAS. O interno é o número de ESTRELAS (índice 0 = 1 estrela).
+// (Tabela SPRIBE_MULTIPLIERS mantida)
 const SPRIBE_MULTIPLIERS = {
     1:  [1.01, 1.05, 1.10, 1.15, 1.21, 1.27, 1.34, 1.42],
     2:  [1.05, 1.15, 1.25, 1.38, 1.53, 1.70, 1.90, 2.13],
@@ -111,6 +110,10 @@ const strategySelect = document.getElementById('strategy');
 const gameLinkInput = document.getElementById('gameLink'); 
 const startButton = document.getElementById('startButton');
 const errorBox = document.getElementById('errorBox');
+// (Lockout Overlay)
+const lockoutOverlay = document.getElementById('lockoutOverlay');
+const lockoutTimerDisplay = document.getElementById('lockoutTimerDisplay');
+
 // (Jogo)
 const openGameButton = document.getElementById('openGameButton'); 
 const goalProgressText = document.getElementById('goalProgressText');
@@ -162,6 +165,7 @@ const winErrorBox = document.getElementById('winErrorBox');
 let currentUser = null;
 let currentUserData = null;
 let sessionTimer = null; 
+let lockoutInterval = null; // (NOVO) Timer do overlay
 
 // --- Estado da Sessão ---
 let currentSessionId = null; 
@@ -245,8 +249,7 @@ function calculateSuggestedGoal() {
     else if (strategy === 'balanced') riskRewardRatio = 1.0; 
     else if (strategy === 'high') riskRewardRatio = 1.5; 
 
-    // (NOVO) Fator de Bombas: Mais bombas = maior volatilidade = meta levemente maior sugerida
-    // Se usar muitas bombas, é natural buscar um lucro maior proporcional ao risco
+    // Fator de Bombas
     let bombFactor = 1.0;
     if (bombs >= 5 && bombs < 10) bombFactor = 1.1;
     if (bombs >= 10) bombFactor = 1.25;
@@ -255,6 +258,62 @@ function calculateSuggestedGoal() {
     const suggestedGoal = bankroll + targetProfit;
 
     goalBankInput.value = suggestedGoal.toFixed(2);
+}
+
+// --- (NOVO) Lógica do Cronômetro de Bloqueio ---
+function checkCooldownState() {
+    if (!currentUserData || !currentUserData.lockoutEndTime) {
+        if (lockoutInterval) clearInterval(lockoutInterval);
+        lockoutOverlay.classList.add('hidden');
+        startButton.disabled = false;
+        return;
+    }
+
+    const now = Date.now();
+    const timeLeft = currentUserData.lockoutEndTime - now;
+
+    if (timeLeft > 0) {
+        // Bloqueio ativo
+        startButton.disabled = true;
+        lockoutOverlay.classList.remove('hidden');
+        startLockoutTimer(currentUserData.lockoutEndTime);
+    } else {
+        // Bloqueio expirou
+        if (lockoutInterval) clearInterval(lockoutInterval);
+        lockoutOverlay.classList.add('hidden');
+        startButton.disabled = false;
+        startButton.textContent = "Iniciar Sessão";
+    }
+}
+
+function startLockoutTimer(endTime) {
+    if (lockoutInterval) clearInterval(lockoutInterval);
+
+    function updateTimer() {
+        const now = Date.now();
+        const diff = endTime - now;
+
+        if (diff <= 0) {
+            clearInterval(lockoutInterval);
+            lockoutOverlay.classList.add('hidden');
+            startButton.disabled = false;
+            startButton.textContent = "Iniciar Sessão";
+            // Opcional: Tocar som ou mostrar notificação
+            return;
+        }
+
+        // Formata Minutos:Segundos
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        const minStr = minutes.toString().padStart(2, '0');
+        const secStr = seconds.toString().padStart(2, '0');
+
+        lockoutTimerDisplay.textContent = `${minStr}:${secStr}`;
+    }
+
+    updateTimer(); // Executa imediatamente
+    lockoutInterval = setInterval(updateTimer, 1000);
 }
 
 // --- FUNÇÕES DE AUTENTICAÇÃO E DADOS ---
@@ -323,6 +382,7 @@ function setupAppForUser() {
     bankrollInput.value = lastBank.toFixed(2);
     lastBankrollDisplay.textContent = formatBRL(lastBank);
     calculateSuggestedGoal(); 
+    checkCooldownState(); // (NOVO) Verifica bloqueio ao iniciar
     
     if (currentUserData.role === 'admin') {
         navAdminLink.classList.remove('hidden');
@@ -577,7 +637,12 @@ async function checkSessionEnd(isManualStop = false) {
         }
         
         await updateUserDoc(currentUser.uid, updateData);
-        currentUserData.lastBankroll = currentBankroll; 
+        currentUserData.lastBankroll = currentBankroll;
+        // (NOVO) Se houver cooldown, atualiza o estado local e inicia o bloqueio
+        if (showCooldown) {
+            currentUserData.lockoutEndTime = updateData.lockoutEndTime;
+            checkCooldownState();
+        }
         
         showSessionEnd(result === "Meta Atingida", showCooldown);
         return true;
@@ -737,7 +802,7 @@ signupForm.addEventListener('submit', async (e) => {
 bankrollInput.addEventListener('input', calculateSuggestedGoal);
 sessionRiskLevelSelect.addEventListener('change', calculateSuggestedGoal);
 strategySelect.addEventListener('change', calculateSuggestedGoal);
-bombCountSelect.addEventListener('change', calculateSuggestedGoal); // (NOVO) Recalcula ao mudar bombas
+bombCountSelect.addEventListener('change', calculateSuggestedGoal);
 
 hamburgerButton.addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
@@ -842,26 +907,20 @@ openGameButton.addEventListener('click', () => {
     if(sessionGameLink) { window.open(sessionGameLink, '_blank'); }
 });
 
-// (ATUALIZADO) Botão GANHEI com cálculo automático
 wonButton.addEventListener('click', () => {
     winErrorBox.classList.add('hidden'); 
     winInputModal.classList.remove('hidden'); 
     
-    // Lógica de Cálculo Automático
-    // 1. Pega o multiplicador correto na tabela
     const clicks = currentClicksToGenerate;
     let multiplier = 1.0;
     
-    // Proteção: se o número de cliques exceder 8 (limite dos dados), usa o máximo ou 1
     if (SPRIBE_MULTIPLIERS[currentBombs] && clicks > 0) {
-        const index = Math.min(clicks, 8) - 1; // índice 0 é 1 estrela
+        const index = Math.min(clicks, 8) - 1; 
         multiplier = SPRIBE_MULTIPLIERS[currentBombs][index] || 1.0;
     }
 
-    // 2. Calcula o Retorno Total (Aposta x Multiplicador)
     const calculatedReturn = currentBetAmount * multiplier;
     
-    // 3. Preenche o input automaticamente
     returnInput.value = calculatedReturn.toFixed(2);
     returnInput.focus(); 
 });
