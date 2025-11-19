@@ -1,4 +1,4 @@
-// --- Configuração do Firebase (FORNECIDA PELO USUÁRIO) ---
+// --- Configuração do Firebase (MANTIDA) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { 
     getAuth, 
@@ -48,8 +48,6 @@ const STRATEGY_NAMES = {
     'N/A': 'N/A'
 };
 
-// (NOVO) Tabela de Multiplicadores Oficiais Spribe (Minas 1-20, Estrelas 1-8)
-// O índice externo é o número de BOMBAS. O interno é o número de ESTRELAS (índice 0 = 1 estrela).
 const SPRIBE_MULTIPLIERS = {
     1:  [1.01, 1.05, 1.10, 1.15, 1.21, 1.27, 1.34, 1.42],
     2:  [1.05, 1.15, 1.25, 1.38, 1.53, 1.70, 1.90, 2.13],
@@ -78,7 +76,7 @@ const loadingScreen = document.getElementById('loadingScreen');
 const loginScreen = document.getElementById('loginScreen');
 const appScreen = document.getElementById('appScreen');
 const allAppViews = document.querySelectorAll('.app-view');
-// (Login/Signup)
+// Auth
 const loginForm = document.getElementById('loginForm');
 const signupForm = document.getElementById('signupForm');
 const loginEmailInput = document.getElementById('loginEmail');
@@ -86,13 +84,13 @@ const loginPasswordInput = document.getElementById('loginPassword');
 const loginButton = document.getElementById('loginButton');
 const signupButton = document.getElementById('signupButton');
 const authErrorBox = document.getElementById('authErrorBox');
-// (Sidebar)
+// Sidebar
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 const hamburgerButton = document.getElementById('hamburgerButton');
 const userEmailDisplay = document.getElementById('userEmailDisplay');
 const navAdminLink = document.getElementById('navAdminLink');
-// (Views)
+// Views
 const setupView = document.getElementById('setupView');
 const gameView = document.getElementById('gameView');
 const dashboardView = document.getElementById('dashboardView'); 
@@ -101,17 +99,18 @@ const pendingView = document.getElementById('pendingView');
 const viewTitle = document.getElementById('viewTitle');
 const appContent = document.getElementById('appContent');
 const pendingLogoutButton = document.getElementById('pendingLogoutButton'); 
-// (Inputs)
+// Inputs Setup
 const bankrollInput = document.getElementById('bankroll');
 const lastBankrollDisplay = document.getElementById('lastBankrollDisplay');
 const goalBankInput = document.getElementById('goalBank');
 const sessionRiskLevelSelect = document.getElementById('sessionRiskLevel'); 
+const martingaleFactorSelect = document.getElementById('martingaleFactor'); // NOVO
 const bombCountSelect = document.getElementById('bombCount');
 const strategySelect = document.getElementById('strategy');
 const gameLinkInput = document.getElementById('gameLink'); 
 const startButton = document.getElementById('startButton');
 const errorBox = document.getElementById('errorBox');
-// (Jogo)
+// Jogo
 const openGameButton = document.getElementById('openGameButton'); 
 const goalProgressText = document.getElementById('goalProgressText');
 const goalProgressBar = document.getElementById('goalProgressBar');
@@ -125,7 +124,7 @@ const gameBoard = document.getElementById('gameBoard');
 const wonButton = document.getElementById('wonButton');
 const lostButton = document.getElementById('lostButton');
 const backButton = document.getElementById('backButton');
-// (Dashboard)
+// Dashboard
 const dateFilterPresets = document.getElementById('dateFilterPresets'); 
 const dateFilterStart = document.getElementById('dateFilterStart'); 
 const dateFilterEnd = document.getElementById('dateFilterEnd'); 
@@ -141,10 +140,10 @@ const kpiBestStrategyProfit = document.getElementById('kpiBestStrategyProfit');
 const kpiWorstStrategy = document.getElementById('kpiWorstStrategy');
 const kpiWorstStrategyLoss = document.getElementById('kpiWorstStrategyLoss');
 const kpiTotalPlays = document.getElementById('kpiTotalPlays');
-// (Admin)
+// Admin
 const adminUserTableBody = document.getElementById('adminUserTableBody');
 const noUsers = document.getElementById('noUsers');
-// (Modais)
+// Modais
 const sessionEndScreen = document.getElementById('sessionEndScreen');
 const sessionEndTitle = document.getElementById('sessionEndTitle');
 const sessionEndIcon = document.getElementById('sessionEndIcon');
@@ -161,9 +160,8 @@ const winErrorBox = document.getElementById('winErrorBox');
 // --- Estado Global ---
 let currentUser = null;
 let currentUserData = null;
-let sessionTimer = null; 
 
-// --- Estado da Sessão ---
+// --- Estado da Sessão & IA ---
 let currentSessionId = null; 
 let initialBankroll = 0;
 let currentBankroll = 0;
@@ -176,6 +174,13 @@ let sessionGameLink = '';
 let currentClicksToGenerate = 0;
 let currentBetAmount = 0;
 let lastBetWasWin = true; 
+let martingaleFactor = 2.0;
+let currentLossStreak = 0;
+
+// --- AI Memory (Heatmap) ---
+// Array de 25 posições. Valor 10 = Neutro. >10 = Seguro. <10 = Perigoso.
+let cellWeights = Array(25).fill(10); 
+let lastIndicatedIndices = []; // Guarda os índices da última jogada para aprendizado
 
 // --- FUNÇÕES DE NAVEGAÇÃO E UI ---
 
@@ -183,7 +188,7 @@ function showView(viewId) {
     allAppViews.forEach(view => view.classList.add('hidden'));
     document.getElementById(viewId).classList.remove('hidden');
     
-    if (viewId === 'setupView') viewTitle.textContent = 'Diário de Sessão';
+    if (viewId === 'setupView') viewTitle.textContent = 'Configurar IA';
     if (viewId === 'dashboardView') viewTitle.textContent = 'Dashboard';
     if (viewId === 'adminView') viewTitle.textContent = 'Gerenciar Usuários';
     
@@ -228,30 +233,20 @@ function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
 }
 
-// (ATUALIZADO) Função para calcular Meta Sugerida (mais realista)
 function calculateSuggestedGoal() {
     const bankroll = parseFloat(bankrollInput.value);
     const riskLevel = parseFloat(sessionRiskLevelSelect.value); 
     const strategy = strategySelect.value;
-    const bombs = parseInt(bombCountSelect.value);
     
     if (isNaN(bankroll) || bankroll <= 0) return;
 
     const riskAmount = bankroll * (1 - riskLevel);
-
-    // Fator de estratégia
     let riskRewardRatio = 1.0; 
     if (strategy === 'low') riskRewardRatio = 0.5; 
     else if (strategy === 'balanced') riskRewardRatio = 1.0; 
     else if (strategy === 'high') riskRewardRatio = 1.5; 
 
-    // (NOVO) Fator de Bombas: Mais bombas = maior volatilidade = meta levemente maior sugerida
-    // Se usar muitas bombas, é natural buscar um lucro maior proporcional ao risco
-    let bombFactor = 1.0;
-    if (bombs >= 5 && bombs < 10) bombFactor = 1.1;
-    if (bombs >= 10) bombFactor = 1.25;
-
-    const targetProfit = riskAmount * riskRewardRatio * bombFactor;
+    const targetProfit = riskAmount * riskRewardRatio * 1.2; // 1.2 Fator AI
     const suggestedGoal = bankroll + targetProfit;
 
     goalBankInput.value = suggestedGoal.toFixed(2);
@@ -274,14 +269,12 @@ onAuthStateChanged(auth, async (user) => {
                 appContent.classList.remove('md:ml-64'); 
                 sidebar.classList.add('hidden'); 
                 hamburgerButton.classList.add('hidden'); 
-                
                 appScreen.classList.remove('hidden');
                 loginScreen.classList.add('hidden');
             } else if (currentUserData.access === 'approved') {
                 appContent.classList.add('md:ml-64'); 
                 sidebar.classList.remove('hidden'); 
                 hamburgerButton.classList.remove('hidden'); 
-                
                 setupAppForUser();
                 showView('setupView');
                 appScreen.classList.remove('hidden');
@@ -308,10 +301,6 @@ onAuthStateChanged(auth, async (user) => {
         currentUserData = null;
         appScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
-        
-        loginEmailInput.value = '';
-        loginPasswordInput.value = '';
-        authErrorBox.classList.add('hidden');
         loginForm.classList.remove('hidden');
         signupForm.classList.add('hidden');
     }
@@ -347,6 +336,7 @@ async function savePlay(playData) {
     await addDoc(playsCollection, playData);
 }
 
+// --- Dashboard ---
 async function loadDashboard() {
     dashboardLoading.classList.remove('hidden');
     dashboardStats.classList.add('hidden');
@@ -394,11 +384,7 @@ async function loadDashboard() {
     let totalProfit = 0;
     let totalBet = 0;
     let wins = 0;
-    let strategyAnalysis = {
-        low: { profit: 0, count: 0 },
-        balanced: { profit: 0, count: 0 },
-        high: { profit: 0, count: 0 }
-    };
+    let strategyAnalysis = { low: { profit: 0, count: 0 }, balanced: { profit: 0, count: 0 }, high: { profit: 0, count: 0 } };
 
     allPlays.forEach(play => {
         totalBet += play.betAmount;
@@ -423,12 +409,8 @@ async function loadDashboard() {
 
     for (const [name, data] of Object.entries(strategyAnalysis)) {
         if (data.count > 0) {
-            if (data.profit > bestStrat.profit) {
-                bestStrat = { name, profit: data.profit };
-            }
-            if (data.profit < worstStrat.profit) {
-                worstStrat = { name, profit: data.profit };
-            }
+            if (data.profit > bestStrat.profit) bestStrat = { name, profit: data.profit };
+            if (data.profit < worstStrat.profit) worstStrat = { name, profit: data.profit };
         }
     }
 
@@ -452,13 +434,10 @@ function updateDashboardDates() {
     const endDate = new Date();
     let startDate = new Date();
     
-    if (preset === '7') {
-        startDate.setDate(endDate.getDate() - 7);
-    } else if (preset === '30') {
-        startDate.setDate(endDate.getDate() - 30);
-    } else if (preset === '90') {
-        startDate.setDate(endDate.getDate() - 90);
-    } else if (preset === 'custom') {
+    if (preset === '7') startDate.setDate(endDate.getDate() - 7);
+    else if (preset === '30') startDate.setDate(endDate.getDate() - 30);
+    else if (preset === '90') startDate.setDate(endDate.getDate() - 90);
+    else if (preset === 'custom') {
         dateFilterStart.disabled = false;
         dateFilterEnd.disabled = false;
         return;
@@ -466,7 +445,6 @@ function updateDashboardDates() {
     
     dateFilterStart.value = formatDateForInput(startDate);
     dateFilterEnd.value = formatDateForInput(endDate);
-    
     dateFilterStart.disabled = true;
     dateFilterEnd.disabled = true;
 }
@@ -496,16 +474,15 @@ async function loadAdminUsers() {
     }
 }
 
-function getRandomInt(min, max) { 
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+// --- LÓGICA DO JOGO (CORE AI) ---
 
 function createBoard() {
     gameBoard.innerHTML = '';
     for (let r = 0; r < 5; r++) { for (let c = 0; c < 5; c++) {
         const cell = document.createElement('div');
         cell.id = `cell-${r}-${c}`;
-        cell.className = 'grid-cell';
+        cell.dataset.index = (r * 5) + c; // Index 0-24
+        cell.className = 'grid-cell transition-all duration-300';
         cell.innerHTML = '<div class="grid-cell-inner"></div>';
         gameBoard.appendChild(cell);
     }}
@@ -515,28 +492,70 @@ function resetBoard() {
     for (let r = 0; r < 5; r++) { for (let c = 0; c < 5; c++) {
         const cell = document.getElementById(`cell-${r}-${c}`);
         if (cell) { 
-            cell.className = 'grid-cell'; 
+            cell.className = 'grid-cell transition-all duration-300'; 
             cell.innerHTML = '<div class="grid-cell-inner"></div>'; 
         }
     }}
 }
 
+// Algoritmo Weighted Random (Aleatório Ponderado pelo Heatmap)
+function getWeightedRandomIndex() {
+    let totalWeight = cellWeights.reduce((sum, w) => sum + w, 0);
+    let random = Math.random() * totalWeight;
+    for (let i = 0; i < 25; i++) {
+        if (random < cellWeights[i]) return i;
+        random -= cellWeights[i];
+    }
+    return 0; // Fallback
+}
+
 function generateIndications() {
     resetBoard();
     const numClicks = currentClicksToGenerate;
-    const selectedCells = new Set();
-    while (selectedCells.size < numClicks) {
-        const row = getRandomInt(0, 4); 
-        const col = getRandomInt(0, 4); 
-        selectedCells.add(`${row}-${col}`);
+    const selectedIndices = new Set();
+    lastIndicatedIndices = [];
+
+    // Tenta selecionar baseado nos pesos (IA)
+    let attempts = 0;
+    while (selectedIndices.size < numClicks && attempts < 100) {
+        const idx = getWeightedRandomIndex();
+        selectedIndices.add(idx);
+        attempts++;
     }
-    selectedCells.forEach(coord => {
-        const cell = document.getElementById(`cell-${coord}`);
+    
+    // Se falhar, preenche aleatório
+    while (selectedIndices.size < numClicks) {
+        selectedIndices.add(Math.floor(Math.random() * 25));
+    }
+
+    selectedIndices.forEach(idx => {
+        lastIndicatedIndices.push(idx); // Guarda para aprendizado
+        const row = Math.floor(idx / 5);
+        const col = idx % 5;
+        const cell = document.getElementById(`cell-${row}-${col}`);
         if (cell) { 
-            cell.classList.add('indicated-cell'); 
-            cell.innerHTML = `<svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>`;
+            cell.classList.add('indicated-cell', 'transform', 'scale-105'); 
+            cell.innerHTML = `<svg class="w-8 h-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>`;
         }
     });
+}
+
+// Atualiza a "IA" baseada no resultado
+function updateHeatmap(result) {
+    if (result === 'loss') {
+        // Se perdeu, as células indicadas eram ruins. Reduz o peso.
+        lastIndicatedIndices.forEach(idx => {
+            cellWeights[idx] = Math.max(1, cellWeights[idx] - 5); // Penalidade forte
+        });
+    } else {
+        // Se ganhou, eram boas. Aumenta peso.
+        lastIndicatedIndices.forEach(idx => {
+            cellWeights[idx] = Math.min(30, cellWeights[idx] + 2); // Recompensa leve
+        });
+        // Decay (esquecimento) natural para evitar vício
+        cellWeights = cellWeights.map(w => Math.max(1, w * 0.98)); 
+    }
+    console.log("Heatmap Updated:", cellWeights);
 }
 
 function updateProgressBars() {
@@ -570,12 +589,10 @@ async function checkSessionEnd(isManualStop = false) {
         
         const updateData = { lastBankroll: currentBankroll };
         let showCooldown = false;
-        
         if (result !== "Sessão Encerrada") {
             updateData.lockoutEndTime = Date.now() + (COOLDOWN_MINUTES * 60 * 1000);
             showCooldown = true;
         }
-        
         await updateUserDoc(currentUser.uid, updateData);
         currentUserData.lastBankroll = currentBankroll; 
         
@@ -587,74 +604,87 @@ async function checkSessionEnd(isManualStop = false) {
 
 function showSessionEnd(didWin, showCooldown) {
     if (didWin) {
-        sessionEndTitle.textContent = "META ATINGIDA!";
-        sessionEndIcon.innerHTML = `
-            <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <circle cx="12" cy="12" r="6"></circle>
-              <circle cx="12" cy="12" r="2"></circle>
-            </svg>`;
+        sessionEndTitle.textContent = "META BATIDA!";
+        sessionEndIcon.innerHTML = `<svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
     } else {
-        sessionEndTitle.textContent = "LIMITE ATINGIDO!";
+        sessionEndTitle.textContent = "STOP LOSS!";
         sessionEndIcon.innerHTML = '<svg class="w-16 h-16 text-red-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
     }
-    
-    if (showCooldown) {
-        cooldownMessage.classList.remove('hidden');
-    } else {
-        cooldownMessage.classList.add('hidden');
-    }
+    if (showCooldown) cooldownMessage.classList.remove('hidden');
+    else cooldownMessage.classList.add('hidden');
     
     sessionEndBank.textContent = formatBRL(currentBankroll);
     sessionEndScreen.classList.remove('hidden');
 }
 
 function generateNewRound() {
+    // Lógica de Estratégia Dinâmica
     if (!lastBetWasWin && currentStrategy !== 'low') {
-        strategyTitle.textContent = "Jogada de Recuperação";
+        strategyTitle.textContent = "Recuperação (AI)";
         if (currentStrategy === 'high') currentStrategy = 'balanced';
         else currentStrategy = 'low';
     } else if (lastBetWasWin) {
-        strategyTitle.textContent = "Próxima Jogada";
+        strategyTitle.textContent = "Entrada Calculada";
         currentStrategy = strategySelect.value;
     }
 
+    // Definição de Cliques
     let minClicks, maxClicks;
     switch (currentStrategy) {
         case 'low': minClicks = 1; maxClicks = 3; break;
-        case 'balanced': minClicks = 4; maxClicks = 5; break;
-        case 'high': minClicks = 6; maxClicks = 8; break;
+        case 'balanced': minClicks = 3; maxClicks = 5; break;
+        case 'high': minClicks = 5; maxClicks = 8; break;
     }
     maxClicks = Math.min(maxClicks, currentSafeSquares);
     minClicks = Math.min(minClicks, maxClicks);
-    if (minClicks > maxClicks) minClicks = maxClicks;
+    currentClicksToGenerate = Math.floor(Math.random() * (maxClicks - minClicks + 1)) + minClicks;
 
-    currentClicksToGenerate = getRandomInt(minClicks, maxClicks); 
-
-    let prob = 1.0;
-    if (currentClicksToGenerate > currentSafeSquares) prob = 0; 
-    else { for (let i = 0; i < currentClicksToGenerate; i++) { prob *= (currentSafeSquares - i) / (25 - i); } }
-
-    let baseBetPercentage = 0.01; 
-    if (prob > 0.8) baseBetPercentage = 0.05; 
-    else if (prob > 0.5) baseBetPercentage = 0.025; 
-    else if (prob > 0.3) baseBetPercentage = 0.015; 
-    if (!lastBetWasWin) baseBetPercentage = 0.01; 
+    // --- LÓGICA DE GALE (MARTINGALE) ---
+    let baseBetPercentage = 0.02; // Base 2%
     
-    currentBetAmount = Math.max(1, Math.floor(currentBankroll * baseBetPercentage));
+    // Cálculo da Aposta
+    if (lastBetWasWin) {
+        // Se ganhou, volta pra aposta base
+        currentBetAmount = Math.floor(currentBankroll * baseBetPercentage);
+    } else {
+        // Se perdeu, aplica o Gale baseado no Streak
+        // Fórmula: Base * (Fator ^ Streak)
+        // Ex: 2 * (2 ^ 1) = 4. Ex: 2 * (2 ^ 2) = 8.
+        let recoveryBet = Math.floor(currentBankroll * baseBetPercentage) * Math.pow(martingaleFactor, currentLossStreak);
+        
+        // Proteção: Nunca apostar mais que 30% da banca numa única mão de recuperação, a menos que seja all-in final
+        let maxSafeBet = currentBankroll * 0.30;
+        if (recoveryBet > maxSafeBet && recoveryBet < currentBankroll) {
+            recoveryBet = maxSafeBet;
+        }
+        currentBetAmount = Math.floor(recoveryBet);
+    }
+
+    // Proteções Finais de Saldo
+    currentBetAmount = Math.max(1, currentBetAmount);
     if (currentBankroll - currentBetAmount < stopLossBank) {
+        // Ajusta para não estourar o Stop Loss sem querer, ou vai All-In do que sobra acima do stop
         currentBetAmount = currentBankroll - stopLossBank;
-        currentBetAmount = Math.max(1, Math.floor(currentBetAmount)); 
+        if (currentBetAmount < 1) currentBetAmount = 0; // Stop Loss atingido tecnicamente
     }
     currentBetAmount = Math.min(currentBankroll, currentBetAmount);
 
+    // Probabilidade Visual (IA Confidence)
+    // Se usar heatmap cells com peso alto, confiança aumenta
+    let confidenceScore = 0;
+    // Simula confiança baseado na média dos pesos do heatmap
+    let avgWeight = cellWeights.reduce((a,b)=>a+b)/25;
+    let prob = (avgWeight / 10) * ((currentSafeSquares - currentClicksToGenerate) / 25);
+    
     clickCount.textContent = currentClicksToGenerate;
-    const probPercent = (prob * 100).toFixed(1);
+    const probPercent = Math.min(98, (prob * 100)).toFixed(1);
+    
     successChance.textContent = `${probPercent}%`;
     successChance.className = 'text-xl sm:text-2xl font-bold'; 
-    if (prob > 0.6) successChance.classList.add('prob-safe');
-    else if (prob > 0.3) successChance.classList.add('prob-mid');
-    else successChance.classList.add('prob-danger');
+    if (probPercent > 60) { successChance.classList.add('text-green-400'); successChance.classList.remove('text-yellow-400', 'text-red-400'); }
+    else if (probPercent > 30) { successChance.classList.add('text-yellow-400'); successChance.classList.remove('text-green-400', 'text-red-400'); }
+    else { successChance.classList.add('text-red-400'); successChance.classList.remove('text-green-400', 'text-yellow-400'); }
+    
     suggestedBet.textContent = formatBRL(currentBetAmount);
     generateIndications();
 }
@@ -662,114 +692,48 @@ function generateNewRound() {
 // --- Event Listeners ---
 
 document.getElementById('showSignup').addEventListener('click', (e) => {
-    e.preventDefault();
-    loginForm.classList.add('hidden');
-    signupForm.classList.remove('hidden');
-    authErrorBox.classList.add('hidden');
+    e.preventDefault(); loginForm.classList.add('hidden'); signupForm.classList.remove('hidden'); authErrorBox.classList.add('hidden');
 });
-
 document.getElementById('showLogin').addEventListener('click', (e) => {
-    e.preventDefault();
-    signupForm.classList.add('hidden');
-    loginForm.classList.remove('hidden');
-    authErrorBox.classList.add('hidden');
+    e.preventDefault(); signupForm.classList.add('hidden'); loginForm.classList.remove('hidden'); authErrorBox.classList.add('hidden');
 });
 
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    loginButton.disabled = true;
-    loginButton.textContent = "Entrando...";
-    authErrorBox.classList.add('hidden');
-    try {
-        const email = loginEmailInput.value;
-        const pass = loginPasswordInput.value;
-        await signInWithEmailAndPassword(auth, email, pass);
-    } catch (error) {
-        showAuthError("Email ou senha inválidos.");
-        console.error("Erro Login:", error.message);
-    }
-    loginButton.disabled = false;
-    loginButton.textContent = "Entrar";
+    loginButton.disabled = true; loginButton.textContent = "Entrando...";
+    try { await signInWithEmailAndPassword(auth, loginEmailInput.value, loginPasswordInput.value); }
+    catch (error) { showAuthError("Email ou senha inválidos."); }
+    loginButton.disabled = false; loginButton.textContent = "Entrar";
 });
 
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    signupButton.disabled = true;
-    signupButton.textContent = "Criando...";
-    authErrorBox.classList.add('hidden');
-    
+    signupButton.disabled = true; signupButton.textContent = "Criando...";
     const name = document.getElementById('signupName').value;
     const email = document.getElementById('signupEmail').value;
     const pass = document.getElementById('signupPassword').value;
-    
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const user = userCredential.user;
-        
         const isAdmin = user.email === ADMIN_EMAIL;
-        const userDoc = {
-            uid: user.uid,
-            email: user.email,
-            name: name,
-            role: isAdmin ? 'admin' : 'user',
-            access: isAdmin ? 'approved' : 'pending',
-            lastBankroll: 100, 
-            lockoutEndTime: null,
-            createdAt: serverTimestamp() 
-        };
-        
+        const userDoc = { uid: user.uid, email: user.email, name: name, role: isAdmin ? 'admin' : 'user', access: isAdmin ? 'approved' : 'pending', lastBankroll: 100, lockoutEndTime: null, createdAt: serverTimestamp() };
         await setDoc(doc(db, "users", user.uid), userDoc);
-        
-    } catch (error) {
-        if (error.code === 'auth/email-already-in-use') {
-            showAuthError("Este email já está em uso.");
-        } else if (error.code === 'auth/weak-password') {
-            showAuthError("A senha deve ter no mínimo 6 caracteres.");
-        } else {
-            showAuthError("Erro ao criar conta.");
-        }
-        console.error("Erro Signup:", error.message);
-    }
-    signupButton.disabled = false;
-    signupButton.textContent = "Criar Conta";
+    } catch (error) { showAuthError(error.code === 'auth/email-already-in-use' ? "Email já em uso." : "Erro ao criar conta."); }
+    signupButton.disabled = false; signupButton.textContent = "Criar Conta";
 });
 
 bankrollInput.addEventListener('input', calculateSuggestedGoal);
 sessionRiskLevelSelect.addEventListener('change', calculateSuggestedGoal);
 strategySelect.addEventListener('change', calculateSuggestedGoal);
-bombCountSelect.addEventListener('change', calculateSuggestedGoal); // (NOVO) Recalcula ao mudar bombas
+bombCountSelect.addEventListener('change', calculateSuggestedGoal);
 
 hamburgerButton.addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
-
-document.getElementById('navDiario').addEventListener('click', (e) => {
-    e.preventDefault();
-    setupAppForUser(); 
-    showView('setupView');
-});
-
-document.getElementById('navDashboard').addEventListener('click', async (e) => {
-    e.preventDefault();
-    showView('dashboardView');
-    updateDashboardDates(); 
-    await loadDashboard(); 
-});
-
-document.getElementById('navAdmin').addEventListener('click', async (e) => {
-    e.preventDefault();
-    await loadAdminUsers();
-    showView('adminView');
-});
-
-document.getElementById('navSair').addEventListener('click', (e) => {
-    e.preventDefault();
-    signOut(auth);
-});
-
-pendingLogoutButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    signOut(auth);
-});
+document.getElementById('navDiario').addEventListener('click', (e) => { e.preventDefault(); setupAppForUser(); showView('setupView'); });
+document.getElementById('navDashboard').addEventListener('click', async (e) => { e.preventDefault(); showView('dashboardView'); updateDashboardDates(); await loadDashboard(); });
+document.getElementById('navAdmin').addEventListener('click', async (e) => { e.preventDefault(); await loadAdminUsers(); showView('adminView'); });
+document.getElementById('navSair').addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
+pendingLogoutButton.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
 
 startButton.addEventListener('click', async () => {
     const bankroll = parseFloat(bankrollInput.value);
@@ -777,29 +741,20 @@ startButton.addEventListener('click', async () => {
     const riskLevel = parseFloat(sessionRiskLevelSelect.value); 
     
     if (isNaN(bankroll) || bankroll <= 0) { showError("Banca inicial inválida."); return; }
-    if (isNaN(goal) || goal <= bankroll) { showError("A Meta de Ganhos deve ser maior que a banca inicial."); return; }
+    if (isNaN(goal) || goal <= bankroll) { showError("A Meta deve ser maior que a banca."); return; }
     
-    startButton.disabled = true;
-    startButton.textContent = "Verificando...";
+    startButton.disabled = true; startButton.textContent = "Inicializando IA...";
     const profile = await getUserProfile(currentUser.uid);
     const now = Date.now();
-    
     if (profile.lockoutEndTime && now < profile.lockoutEndTime) {
         const timeLeft = profile.lockoutEndTime - now;
-        showError(`App bloqueado. Tente novamente em ${formatMinutes(timeLeft)}.`);
-        startButton.disabled = false;
-        startButton.textContent = "Iniciar Sessão";
+        showError(`App bloqueado. Aguarde ${formatMinutes(timeLeft)}.`);
+        startButton.disabled = false; startButton.textContent = "Iniciar IA";
         return;
     }
-    startButton.disabled = false;
-    startButton.textContent = "Iniciar Sessão";
+    startButton.disabled = false; startButton.textContent = "Iniciar IA";
     
     sessionGameLink = gameLinkInput.value;
-    if (sessionGameLink && !(sessionGameLink.startsWith('http://') || sessionGameLink.startsWith('https://'))) {
-        showError("O link do jogo parece ser inválido. (Deve começar com http:// ou https://)");
-        return;
-    }
-    
     errorBox.classList.add('hidden');
     
     initialBankroll = bankroll;
@@ -808,61 +763,37 @@ startButton.addEventListener('click', async () => {
     stopLossBank = bankroll * riskLevel; 
     currentBombs = parseInt(bombCountSelect.value);
     currentStrategy = strategySelect.value;
+    martingaleFactor = parseFloat(martingaleFactorSelect.value); // Pega o fator Gale
     currentSafeSquares = 25 - currentBombs;
     lastBetWasWin = true; 
+    currentLossStreak = 0;
+    cellWeights = Array(25).fill(10); // Reseta memória da IA
     
     try {
-        const sessionCollection = collection(db, "users", currentUser.uid, "sessions");
-        const sessionDocRef = await addDoc(sessionCollection, {
-            date: serverTimestamp(),
-            initialBankroll,
-            goalBank,
-            stopLossBank,
-            bombs: currentBombs,
-            strategy: currentStrategy,
-            status: "active", 
-            userId: currentUser.uid 
+        const sessionDocRef = await addDoc(collection(db, "users", currentUser.uid, "sessions"), {
+            date: serverTimestamp(), initialBankroll, goalBank, stopLossBank, bombs: currentBombs, strategy: currentStrategy, status: "active", userId: currentUser.uid 
         });
         currentSessionId = sessionDocRef.id; 
-    } catch (error) {
-        console.error("Erro ao criar sessão:", error);
-        showError("Falha ao iniciar a sessão. Tente novamente.");
-        return;
-    }
+    } catch (error) { showError("Falha ao iniciar sessão."); return; }
     
-    if (sessionGameLink) openGameButton.classList.remove('hidden');
-    else openGameButton.classList.add('hidden');
+    if (sessionGameLink) openGameButton.classList.remove('hidden'); else openGameButton.classList.add('hidden');
     
     updateProgressBars();
     generateNewRound();
     showView('gameView');
 });
 
-openGameButton.addEventListener('click', () => {
-    if(sessionGameLink) { window.open(sessionGameLink, '_blank'); }
-});
+openGameButton.addEventListener('click', () => { if(sessionGameLink) window.open(sessionGameLink, '_blank'); });
 
-// (ATUALIZADO) Botão GANHEI com cálculo automático
 wonButton.addEventListener('click', () => {
-    winErrorBox.classList.add('hidden'); 
-    winInputModal.classList.remove('hidden'); 
-    
-    // Lógica de Cálculo Automático
-    // 1. Pega o multiplicador correto na tabela
+    winErrorBox.classList.add('hidden'); winInputModal.classList.remove('hidden'); 
     const clicks = currentClicksToGenerate;
     let multiplier = 1.0;
-    
-    // Proteção: se o número de cliques exceder 8 (limite dos dados), usa o máximo ou 1
     if (SPRIBE_MULTIPLIERS[currentBombs] && clicks > 0) {
-        const index = Math.min(clicks, 8) - 1; // índice 0 é 1 estrela
+        const index = Math.min(clicks, 8) - 1;
         multiplier = SPRIBE_MULTIPLIERS[currentBombs][index] || 1.0;
     }
-
-    // 2. Calcula o Retorno Total (Aposta x Multiplicador)
-    const calculatedReturn = currentBetAmount * multiplier;
-    
-    // 3. Preenche o input automaticamente
-    returnInput.value = calculatedReturn.toFixed(2);
+    returnInput.value = (currentBetAmount * multiplier).toFixed(2);
     returnInput.focus(); 
 });
 
@@ -872,19 +803,11 @@ lostButton.addEventListener('click', async () => {
     
     currentBankroll -= betAmount;
     lastBetWasWin = false;
+    currentLossStreak++; // Incrementa streak de perda
+    updateHeatmap('loss'); // IA aprende que perdeu
     
     await savePlay({
-        timestamp: serverTimestamp(),
-        userId: currentUser.uid, 
-        result: 'perda',
-        betAmount: betAmount,
-        profit: 0,
-        loss: betAmount,
-        strategy: currentStrategy,
-        bombs: currentBombs,
-        clicksSuggested: currentClicksToGenerate,
-        bankrollBefore: bankrollBefore,
-        bankrollAfter: currentBankroll
+        timestamp: serverTimestamp(), userId: currentUser.uid, result: 'perda', betAmount, profit: 0, loss: betAmount, strategy: currentStrategy, bombs: currentBombs, clicksSuggested: currentClicksToGenerate, bankrollBefore, bankrollAfter: currentBankroll
     });
     
     updateProgressBars();
@@ -893,77 +816,41 @@ lostButton.addEventListener('click', async () => {
 
 confirmWinButton.addEventListener('click', async () => {
     const totalReturn = parseFloat(returnInput.value);
-    
     if (isNaN(totalReturn) || totalReturn < currentBetAmount) {
-        winErrorBox.textContent = `Valor inválido. Deve ser pelo menos ${formatBRL(currentBetAmount)}.`;
-        winErrorBox.classList.remove('hidden');
-        return;
+        winErrorBox.textContent = `Valor inválido. Mínimo: ${formatBRL(currentBetAmount)}.`; winErrorBox.classList.remove('hidden'); return;
     }
-    
     const profit = totalReturn - currentBetAmount;
-    
-    winErrorBox.classList.add('hidden');
-    winInputModal.classList.add('hidden');
+    winErrorBox.classList.add('hidden'); winInputModal.classList.add('hidden');
     
     const betAmount = currentBetAmount;
     const bankrollBefore = currentBankroll;
     
     currentBankroll += profit;
     lastBetWasWin = true;
+    currentLossStreak = 0; // Reseta streak
+    updateHeatmap('win'); // IA aprende que ganhou
     
     await savePlay({
-        timestamp: serverTimestamp(),
-        userId: currentUser.uid, 
-        result: 'ganho',
-        betAmount: betAmount,
-        profit: profit, 
-        loss: 0,
-        strategy: currentStrategy,
-        bombs: currentBombs,
-        clicksSuggested: currentClicksToGenerate,
-        bankrollBefore: bankrollBefore,
-        bankrollAfter: currentBankroll
+        timestamp: serverTimestamp(), userId: currentUser.uid, result: 'ganho', betAmount, profit, loss: 0, strategy: currentStrategy, bombs: currentBombs, clicksSuggested: currentClicksToGenerate, bankrollBefore, bankrollAfter: currentBankroll
     });
     
     updateProgressBars();
     if (!await checkSessionEnd()) generateNewRound();
 });
 
-cancelWinButton.addEventListener('click', () => {
-    winInputModal.classList.add('hidden');
-});
-
-backButton.addEventListener('click', async () => {
-    await checkSessionEnd(true); 
-    setupAppForUser(); 
-    showView('setupView');
-});
-
-restartButton.addEventListener('click', () => {
-    sessionEndScreen.classList.add('hidden');
-    setupAppForUser(); 
-    showView('setupView');
-});
-
+cancelWinButton.addEventListener('click', () => { winInputModal.classList.add('hidden'); });
+backButton.addEventListener('click', async () => { await checkSessionEnd(true); setupAppForUser(); showView('setupView'); });
+restartButton.addEventListener('click', () => { sessionEndScreen.classList.add('hidden'); setupAppForUser(); showView('setupView'); });
 loadDashboardButton.addEventListener('click', loadDashboard);
 dateFilterPresets.addEventListener('change', updateDashboardDates);
 
 adminUserTableBody.addEventListener('click', async (e) => {
-    const target = e.target;
-    const uid = target.dataset.uid;
-    if (!uid) return;
-    
+    const target = e.target; const uid = target.dataset.uid; if (!uid) return;
     try {
-        if (target.classList.contains('btn-approve')) {
-            await updateUserDoc(uid, { access: 'approved' });
-        } else if (target.classList.contains('btn-revoke')) {
-            await updateUserDoc(uid, { access: 'pending' });
-        }
+        if (target.classList.contains('btn-approve')) await updateUserDoc(uid, { access: 'approved' });
+        else if (target.classList.contains('btn-revoke')) await updateUserDoc(uid, { access: 'pending' });
         await loadAdminUsers(); 
-    } catch (err) {
-        console.error("Erro ao atualizar usuário:", err);
-        alert("Falha ao atualizar status do usuário.");
-    }
+    } catch (err) { alert("Erro ao atualizar usuário."); }
 });
 
 createBoard();
