@@ -101,22 +101,21 @@ body {
 .kpi-title { font-size: 0.875rem; color: #90caf9; margin-bottom: 0.25rem; }
 .kpi-value { font-size: 1.5rem; font-weight: 700; color: white; }
 
-/* (CORREÇÃO) Estilos das Barras de Progresso */
 .progress-bar-bg {
     background-color: #0a1730; 
     border: 1px solid #1565c0;
     border-radius: 9999px; 
-    height: 1.25rem; /* Altura fixa para aparecer */
+    height: 1.25rem; 
     width: 100%;
     overflow: hidden;
     margin-top: 0.25rem;
-    position: relative; /* Para garantir contexto */
+    position: relative; 
 }
 .progress-bar {
     height: 100%;
     transition: width 0.5s ease-in-out;
     border-radius: 9999px;
-    min-width: 2%; /* Para sempre mostrar um pouquinho se > 0 */
+    min-width: 2%; 
 }
 .progress-bar-gain { background-color: #4caf50; }
 .progress-bar-loss { background-color: #f44336; }
@@ -131,3 +130,21 @@ body {
 .text-pending { color: #ffb74d; } 
 #sidebar { background-color: #0d2a4c; }
 #sidebarOverlay { transition: opacity 0.3s ease-in-out; }
+
+/* NOVOS ESTILOS (Melhoria Visual e Feedback) */
+
+@keyframes pulse-scale {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.indicated-cell svg {
+    animation: pulse-scale 1.5s infinite;
+    color: #ffd700; /* Ouro */
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.7));
+}
+
+/* Cores de Probabilidade */
+.prob-safe { color: #4caf50; text-shadow: 0 0 10px rgba(76, 175, 80, 0.5); }
+.prob-mid { color: #ffeb3b; text-shadow: 0 0 10px rgba(255, 235, 59, 0.5); }
+.prob-danger { color: #f44336; text-shadow: 0 0 10px rgba(244, 67, 54, 0.5); }
