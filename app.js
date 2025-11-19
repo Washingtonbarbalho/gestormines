@@ -1,5 +1,4 @@
 // --- Configuração do Firebase (FORNECIDA PELO USUÁRIO) ---
-// (Usando Firebase v12.6.0)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { 
     getAuth, 
@@ -35,7 +34,6 @@ const firebaseConfig = {
     appId: "1:370610480260:web:d4a94acb09904379c24ed1"
 };
 
-// --- Inicialização ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -48,6 +46,31 @@ const STRATEGY_NAMES = {
     balanced: "Equilibrada",
     high: "Alto Risco",
     'N/A': 'N/A'
+};
+
+// (NOVO) Tabela de Multiplicadores Oficiais Spribe (Minas 1-20, Estrelas 1-8)
+// O índice externo é o número de BOMBAS. O interno é o número de ESTRELAS (índice 0 = 1 estrela).
+const SPRIBE_MULTIPLIERS = {
+    1:  [1.01, 1.05, 1.10, 1.15, 1.21, 1.27, 1.34, 1.42],
+    2:  [1.05, 1.15, 1.25, 1.38, 1.53, 1.70, 1.90, 2.13],
+    3:  [1.10, 1.25, 1.44, 1.67, 1.95, 2.30, 2.73, 3.28],
+    4:  [1.15, 1.38, 1.67, 2.05, 2.53, 3.16, 4.00, 5.15],
+    5:  [1.21, 1.53, 1.95, 2.53, 3.32, 4.43, 6.01, 8.32],
+    6:  [1.27, 1.70, 2.30, 3.16, 4.43, 6.33, 9.25, 13.88],
+    7:  [1.34, 1.90, 2.73, 4.00, 6.01, 9.25, 14.65, 23.97],
+    8:  [1.42, 2.13, 3.28, 5.15, 8.32, 13.88, 23.97, 43.15],
+    9:  [1.51, 2.42, 3.98, 6.74, 11.79, 21.45, 40.75, 81.51],
+    10: [1.61, 2.77, 4.90, 8.98, 17.16, 34.32, 72.45, 163.03],
+    11: [1.73, 3.19, 6.12, 12.25, 25.74, 57.20, 135.86, 349.35],
+    12: [1.86, 3.73, 7.80, 17.16, 40.04, 100.10, 271.72, 815.17],
+    13: [2.02, 4.40, 10.14, 24.78, 65.07, 185.91, 588.73, 2119.44],
+    14: [2.20, 5.29, 13.52, 37.18, 111.55, 371.83, 1412.96, 6358.35],
+    15: [2.42, 6.46, 18.59, 58.43, 204.50, 818.03, 3885.65, 23313.94],
+    16: [2.69, 8.08, 26.55, 97.38, 409.01, 2045.08, 12952.19, 116569.74],
+    17: [3.03, 10.39, 39.83, 175.29, 920.28, 6135.25, 58284.87, 1049127.75],
+    18: [3.46, 13.85, 63.74, 350.58, 2454.10, 24541.00, 466279.00],
+    19: [4.04, 19.40, 111.55, 818.03, 8589.35, 171787.00],
+    20: [4.85, 29.10, 223.10, 2454.10, 51536.10]
 };
 
 // --- Globais de UI ---
@@ -138,7 +161,7 @@ const winErrorBox = document.getElementById('winErrorBox');
 // --- Estado Global ---
 let currentUser = null;
 let currentUserData = null;
-let sessionTimer = null; // para o cooldown
+let sessionTimer = null; 
 
 // --- Estado da Sessão ---
 let currentSessionId = null; 
@@ -205,43 +228,37 @@ function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
 }
 
-// (NOVO) Função para calcular Meta Sugerida
+// (ATUALIZADO) Função para calcular Meta Sugerida (mais realista)
 function calculateSuggestedGoal() {
     const bankroll = parseFloat(bankrollInput.value);
-    const riskLevel = parseFloat(sessionRiskLevelSelect.value); // ex: 0.7 (para com 70% da banca, arrisca 30%)
+    const riskLevel = parseFloat(sessionRiskLevelSelect.value); 
     const strategy = strategySelect.value;
+    const bombs = parseInt(bombCountSelect.value);
     
     if (isNaN(bankroll) || bankroll <= 0) return;
 
-    // Calcula o valor que o usuário está disposto a perder (Stop Loss Amount)
-    // Ex: Banca 100, Risco 0.7 -> Stop no 70 -> Arriscando 30.
     const riskAmount = bankroll * (1 - riskLevel);
 
-    // Define um multiplicador de Risco/Retorno baseado na estratégia
-    // Estratégias mais arriscadas buscam lucros maiores para valer o risco
-    let riskRewardRatio = 1.0; // Padrão 1:1 (arrisca 30 pra ganhar 30)
+    // Fator de estratégia
+    let riskRewardRatio = 1.0; 
+    if (strategy === 'low') riskRewardRatio = 0.5; 
+    else if (strategy === 'balanced') riskRewardRatio = 1.0; 
+    else if (strategy === 'high') riskRewardRatio = 1.5; 
 
-    if (strategy === 'low') {
-        riskRewardRatio = 0.5; // Conservador: Busca 50% do valor arriscado
-    } else if (strategy === 'balanced') {
-        riskRewardRatio = 1.0; // Equilibrado: Busca 100% do valor arriscado
-    } else if (strategy === 'high') {
-        riskRewardRatio = 1.5; // Alto Risco: Busca 150% do valor arriscado
-    }
+    // (NOVO) Fator de Bombas: Mais bombas = maior volatilidade = meta levemente maior sugerida
+    // Se usar muitas bombas, é natural buscar um lucro maior proporcional ao risco
+    let bombFactor = 1.0;
+    if (bombs >= 5 && bombs < 10) bombFactor = 1.1;
+    if (bombs >= 10) bombFactor = 1.25;
 
-    const targetProfit = riskAmount * riskRewardRatio;
+    const targetProfit = riskAmount * riskRewardRatio * bombFactor;
     const suggestedGoal = bankroll + targetProfit;
 
-    // Arredonda e atualiza o input (sem bloquear a edição)
-    // Apenas atualiza se o campo estiver vazio ou se o usuário acabou de mudar parâmetros principais
-    // Para evitar sobrescrever algo que o usuário digitou manualmente, poderíamos checar foco,
-    // mas aqui vamos apenas sugerir diretamente.
     goalBankInput.value = suggestedGoal.toFixed(2);
 }
 
 // --- FUNÇÕES DE AUTENTICAÇÃO E DADOS ---
 
-// Listener principal da aplicação
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -271,7 +288,6 @@ onAuthStateChanged(auth, async (user) => {
                 loginScreen.classList.add('hidden');
             }
         } else {
-            console.warn("Documento do usuário não encontrado! Criando...");
             const isAdmin = user.email === ADMIN_EMAIL;
             const userDoc = {
                 uid: user.uid,
@@ -306,7 +322,7 @@ function setupAppForUser() {
     const lastBank = currentUserData.lastBankroll || 100;
     bankrollInput.value = lastBank.toFixed(2);
     lastBankrollDisplay.textContent = formatBRL(lastBank);
-    calculateSuggestedGoal(); // Calcula sugestão inicial
+    calculateSuggestedGoal(); 
     
     if (currentUserData.role === 'admin') {
         navAdminLink.classList.remove('hidden');
@@ -314,8 +330,6 @@ function setupAppForUser() {
         navAdminLink.classList.add('hidden');
     }
 }
-
-// --- FUNÇÕES DE DADOS (Firestore) ---
 
 async function getUserProfile(userId) {
     const userDocRef = doc(db, "users", userId);
@@ -364,10 +378,9 @@ async function loadDashboard() {
             allPlays.push(doc.data());
         });
     } catch (error) {
-        console.error("Erro ao carregar dashboard:", error);
         dashboardLoading.classList.add('hidden');
         noDashboardData.classList.remove('hidden');
-        noDashboardData.textContent = "Erro ao carregar dados. (Você pode precisar criar um índice no Firebase. Verifique o console para um link).";
+        noDashboardData.textContent = "Erro ao carregar dados.";
         return;
     }
 
@@ -482,8 +495,6 @@ async function loadAdminUsers() {
         });
     }
 }
-
-// --- FUNÇÕES DE LÓGICA DO JOGO ---
 
 function getRandomInt(min, max) { 
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -723,10 +734,10 @@ signupForm.addEventListener('submit', async (e) => {
     signupButton.textContent = "Criar Conta";
 });
 
-// (NOVO) Listeners para recalcular meta
 bankrollInput.addEventListener('input', calculateSuggestedGoal);
 sessionRiskLevelSelect.addEventListener('change', calculateSuggestedGoal);
 strategySelect.addEventListener('change', calculateSuggestedGoal);
+bombCountSelect.addEventListener('change', calculateSuggestedGoal); // (NOVO) Recalcula ao mudar bombas
 
 hamburgerButton.addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
@@ -831,10 +842,27 @@ openGameButton.addEventListener('click', () => {
     if(sessionGameLink) { window.open(sessionGameLink, '_blank'); }
 });
 
+// (ATUALIZADO) Botão GANHEI com cálculo automático
 wonButton.addEventListener('click', () => {
-    returnInput.value = ''; 
     winErrorBox.classList.add('hidden'); 
     winInputModal.classList.remove('hidden'); 
+    
+    // Lógica de Cálculo Automático
+    // 1. Pega o multiplicador correto na tabela
+    const clicks = currentClicksToGenerate;
+    let multiplier = 1.0;
+    
+    // Proteção: se o número de cliques exceder 8 (limite dos dados), usa o máximo ou 1
+    if (SPRIBE_MULTIPLIERS[currentBombs] && clicks > 0) {
+        const index = Math.min(clicks, 8) - 1; // índice 0 é 1 estrela
+        multiplier = SPRIBE_MULTIPLIERS[currentBombs][index] || 1.0;
+    }
+
+    // 2. Calcula o Retorno Total (Aposta x Multiplicador)
+    const calculatedReturn = currentBetAmount * multiplier;
+    
+    // 3. Preenche o input automaticamente
+    returnInput.value = calculatedReturn.toFixed(2);
     returnInput.focus(); 
 });
 
