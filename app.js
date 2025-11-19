@@ -48,8 +48,7 @@ const STRATEGY_NAMES = {
     'N/A': 'N/A'
 };
 
-// (NOVO) Tabela de Multiplicadores Oficiais Spribe (Minas 1-20, Estrelas 1-8)
-// O índice externo é o número de BOMBAS. O interno é o número de ESTRELAS (índice 0 = 1 estrela).
+// Tabela de Multiplicadores Oficiais Spribe
 const SPRIBE_MULTIPLIERS = {
     1:  [1.01, 1.05, 1.10, 1.15, 1.21, 1.27, 1.34, 1.42],
     2:  [1.05, 1.15, 1.25, 1.38, 1.53, 1.70, 1.90, 2.13],
@@ -228,7 +227,6 @@ function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
 }
 
-// (ATUALIZADO) Função para calcular Meta Sugerida (mais realista)
 function calculateSuggestedGoal() {
     const bankroll = parseFloat(bankrollInput.value);
     const riskLevel = parseFloat(sessionRiskLevelSelect.value); 
@@ -239,14 +237,11 @@ function calculateSuggestedGoal() {
 
     const riskAmount = bankroll * (1 - riskLevel);
 
-    // Fator de estratégia
     let riskRewardRatio = 1.0; 
     if (strategy === 'low') riskRewardRatio = 0.5; 
     else if (strategy === 'balanced') riskRewardRatio = 1.0; 
     else if (strategy === 'high') riskRewardRatio = 1.5; 
 
-    // (NOVO) Fator de Bombas: Mais bombas = maior volatilidade = meta levemente maior sugerida
-    // Se usar muitas bombas, é natural buscar um lucro maior proporcional ao risco
     let bombFactor = 1.0;
     if (bombs >= 5 && bombs < 10) bombFactor = 1.1;
     if (bombs >= 10) bombFactor = 1.25;
@@ -274,14 +269,12 @@ onAuthStateChanged(auth, async (user) => {
                 appContent.classList.remove('md:ml-64'); 
                 sidebar.classList.add('hidden'); 
                 hamburgerButton.classList.add('hidden'); 
-                
                 appScreen.classList.remove('hidden');
                 loginScreen.classList.add('hidden');
             } else if (currentUserData.access === 'approved') {
                 appContent.classList.add('md:ml-64'); 
                 sidebar.classList.remove('hidden'); 
                 hamburgerButton.classList.remove('hidden'); 
-                
                 setupAppForUser();
                 showView('setupView');
                 appScreen.classList.remove('hidden');
@@ -308,7 +301,6 @@ onAuthStateChanged(auth, async (user) => {
         currentUserData = null;
         appScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
-        
         loginEmailInput.value = '';
         loginPasswordInput.value = '';
         authErrorBox.classList.add('hidden');
@@ -323,7 +315,6 @@ function setupAppForUser() {
     bankrollInput.value = lastBank.toFixed(2);
     lastBankrollDisplay.textContent = formatBRL(lastBank);
     calculateSuggestedGoal(); 
-    
     if (currentUserData.role === 'admin') {
         navAdminLink.classList.remove('hidden');
     } else {
@@ -354,10 +345,8 @@ async function loadDashboard() {
     
     const [startY, startM, startD] = dateFilterStart.value.split('-').map(Number);
     let startDate = new Date(startY, startM - 1, startD); 
-    
     const [endY, endM, endD] = dateFilterEnd.value.split('-').map(Number);
     let endDate = new Date(endY, endM - 1, endD); 
-    
     endDate.setHours(23, 59, 59, 999); 
     
     const startTimestamp = Timestamp.fromDate(startDate);
@@ -521,20 +510,25 @@ function resetBoard() {
     }}
 }
 
+// (MODIFICADO) Visual melhor e menos repetitivo
 function generateIndications() {
     resetBoard();
     const numClicks = currentClicksToGenerate;
     const selectedCells = new Set();
+    
+    // Evita selecionar a mesma célula visualmente
     while (selectedCells.size < numClicks) {
         const row = getRandomInt(0, 4); 
         const col = getRandomInt(0, 4); 
         selectedCells.add(`${row}-${col}`);
     }
+    
     selectedCells.forEach(coord => {
         const cell = document.getElementById(`cell-${coord}`);
         if (cell) { 
             cell.classList.add('indicated-cell'); 
-            cell.innerHTML = `<svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"></path></svg>`;
+            // Ícone de Diamante/Estrela com animação
+            cell.innerHTML = `<svg class="w-8 h-8 text-white animate-pulse" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path></svg>`;
         }
     });
 }
@@ -609,53 +603,59 @@ function showSessionEnd(didWin, showCooldown) {
     sessionEndScreen.classList.remove('hidden');
 }
 
+// (MODIFICADO) Removemos Martingale e "Tilt Mode"
 function generateNewRound() {
-    if (!lastBetWasWin && currentStrategy !== 'low') {
-        strategyTitle.textContent = "Jogada de Recuperação";
-        if (currentStrategy === 'high') currentStrategy = 'balanced';
-        else currentStrategy = 'low';
-    } else if (lastBetWasWin) {
-        strategyTitle.textContent = "Próxima Jogada";
-        currentStrategy = strategySelect.value;
-    }
+    // Reseta para a estratégia escolhida pelo usuário, ignorando derrotas passadas
+    strategyTitle.textContent = "Próxima Jogada";
+    currentStrategy = strategySelect.value;
 
     let minClicks, maxClicks;
     switch (currentStrategy) {
         case 'low': minClicks = 1; maxClicks = 3; break;
-        case 'balanced': minClicks = 4; maxClicks = 5; break;
-        case 'high': minClicks = 6; maxClicks = 8; break;
+        case 'balanced': minClicks = 3; maxClicks = 4; break; // Ajustado para segurança
+        case 'high': minClicks = 4; maxClicks = 6; break; // Ajustado para segurança
     }
+    
     maxClicks = Math.min(maxClicks, currentSafeSquares);
     minClicks = Math.min(minClicks, maxClicks);
     if (minClicks > maxClicks) minClicks = maxClicks;
 
     currentClicksToGenerate = getRandomInt(minClicks, maxClicks); 
 
+    // Cálculo real de probabilidade
     let prob = 1.0;
     if (currentClicksToGenerate > currentSafeSquares) prob = 0; 
     else { for (let i = 0; i < currentClicksToGenerate; i++) { prob *= (currentSafeSquares - i) / (25 - i); } }
 
-    let baseBetPercentage = 0.01; 
-    if (prob > 0.8) baseBetPercentage = 0.05; 
-    else if (prob > 0.5) baseBetPercentage = 0.025; 
-    else if (prob > 0.3) baseBetPercentage = 0.015; 
-    if (!lastBetWasWin) baseBetPercentage = 0.01; 
+    // Gestão de Banca Conservadora (1% ou 0.5% fixo)
+    let safePercentage = 0.01; 
+    if (currentStrategy === 'high') safePercentage = 0.005; // Menos risco na aposta se a estratégia for arriscada
     
-    currentBetAmount = Math.max(1, Math.floor(currentBankroll * baseBetPercentage));
+    currentBetAmount = Math.max(1, Math.floor(currentBankroll * safePercentage));
+
+    // Proteção absoluta de Stop Loss
     if (currentBankroll - currentBetAmount < stopLossBank) {
         currentBetAmount = currentBankroll - stopLossBank;
-        currentBetAmount = Math.max(1, Math.floor(currentBetAmount)); 
+        if (currentBetAmount < 1) currentBetAmount = 0;
     }
-    currentBetAmount = Math.min(currentBankroll, currentBetAmount);
-
+    
+    // Atualização UI
     clickCount.textContent = currentClicksToGenerate;
     const probPercent = (prob * 100).toFixed(1);
     successChance.textContent = `${probPercent}%`;
+    
+    // Classes de cor baseadas em probabilidade real
     successChance.className = 'text-xl sm:text-2xl font-bold'; 
-    if (prob > 0.6) successChance.classList.add('prob-safe');
-    else if (prob > 0.3) successChance.classList.add('prob-mid');
+    if (prob > 0.8) successChance.classList.add('prob-safe');
+    else if (prob > 0.5) successChance.classList.add('prob-mid');
     else successChance.classList.add('prob-danger');
-    suggestedBet.textContent = formatBRL(currentBetAmount);
+    
+    suggestedBet.textContent = currentBetAmount > 0 ? formatBRL(currentBetAmount) : "PAUSAR (Limite)";
+    
+    if (currentBetAmount <= 0) {
+        showError("Você está muito próximo do seu Stop Loss. Recomendamos parar.");
+    }
+
     generateIndications();
 }
 
@@ -737,7 +737,7 @@ signupForm.addEventListener('submit', async (e) => {
 bankrollInput.addEventListener('input', calculateSuggestedGoal);
 sessionRiskLevelSelect.addEventListener('change', calculateSuggestedGoal);
 strategySelect.addEventListener('change', calculateSuggestedGoal);
-bombCountSelect.addEventListener('change', calculateSuggestedGoal); // (NOVO) Recalcula ao mudar bombas
+bombCountSelect.addEventListener('change', calculateSuggestedGoal);
 
 hamburgerButton.addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
@@ -842,26 +842,20 @@ openGameButton.addEventListener('click', () => {
     if(sessionGameLink) { window.open(sessionGameLink, '_blank'); }
 });
 
-// (ATUALIZADO) Botão GANHEI com cálculo automático
 wonButton.addEventListener('click', () => {
     winErrorBox.classList.add('hidden'); 
     winInputModal.classList.remove('hidden'); 
     
-    // Lógica de Cálculo Automático
-    // 1. Pega o multiplicador correto na tabela
     const clicks = currentClicksToGenerate;
     let multiplier = 1.0;
     
-    // Proteção: se o número de cliques exceder 8 (limite dos dados), usa o máximo ou 1
     if (SPRIBE_MULTIPLIERS[currentBombs] && clicks > 0) {
-        const index = Math.min(clicks, 8) - 1; // índice 0 é 1 estrela
+        const index = Math.min(clicks, 8) - 1; 
         multiplier = SPRIBE_MULTIPLIERS[currentBombs][index] || 1.0;
     }
 
-    // 2. Calcula o Retorno Total (Aposta x Multiplicador)
     const calculatedReturn = currentBetAmount * multiplier;
     
-    // 3. Preenche o input automaticamente
     returnInput.value = calculatedReturn.toFixed(2);
     returnInput.focus(); 
 });
