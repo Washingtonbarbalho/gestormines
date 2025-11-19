@@ -48,7 +48,8 @@ const STRATEGY_NAMES = {
     'N/A': 'N/A'
 };
 
-// (Tabela SPRIBE_MULTIPLIERS mantida)
+// --- TABELA DE MULTIPLICADORES (Mines Spribe) ---
+// [IMPORTANTE] Esta constante deve estar acessível globalmente no módulo
 const SPRIBE_MULTIPLIERS = {
     1:  [1.01, 1.05, 1.10, 1.15, 1.21, 1.27, 1.34, 1.42],
     2:  [1.05, 1.15, 1.25, 1.38, 1.53, 1.70, 1.90, 2.13],
@@ -113,7 +114,6 @@ const errorBox = document.getElementById('errorBox');
 // (Lockout Overlay)
 const lockoutOverlay = document.getElementById('lockoutOverlay');
 const lockoutTimerDisplay = document.getElementById('lockoutTimerDisplay');
-
 // (Jogo)
 const openGameButton = document.getElementById('openGameButton'); 
 const goalProgressText = document.getElementById('goalProgressText');
@@ -165,7 +165,7 @@ const winErrorBox = document.getElementById('winErrorBox');
 let currentUser = null;
 let currentUserData = null;
 let sessionTimer = null; 
-let lockoutInterval = null; // (NOVO) Timer do overlay
+let lockoutInterval = null;
 
 // --- Estado da Sessão ---
 let currentSessionId = null; 
@@ -186,11 +186,9 @@ let lastBetWasWin = true;
 function showView(viewId) {
     allAppViews.forEach(view => view.classList.add('hidden'));
     document.getElementById(viewId).classList.remove('hidden');
-    
     if (viewId === 'setupView') viewTitle.textContent = 'Diário de Sessão';
     if (viewId === 'dashboardView') viewTitle.textContent = 'Dashboard';
     if (viewId === 'adminView') viewTitle.textContent = 'Gerenciar Usuários';
-    
     closeSidebar();
 }
 
@@ -232,7 +230,7 @@ function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
 }
 
-// (ATUALIZADO) Função para calcular Meta Sugerida (mais realista)
+// (ATUALIZADO) Função para calcular Meta Sugerida
 function calculateSuggestedGoal() {
     const bankroll = parseFloat(bankrollInput.value);
     const riskLevel = parseFloat(sessionRiskLevelSelect.value); 
@@ -243,13 +241,11 @@ function calculateSuggestedGoal() {
 
     const riskAmount = bankroll * (1 - riskLevel);
 
-    // Fator de estratégia
     let riskRewardRatio = 1.0; 
     if (strategy === 'low') riskRewardRatio = 0.5; 
     else if (strategy === 'balanced') riskRewardRatio = 1.0; 
     else if (strategy === 'high') riskRewardRatio = 1.5; 
 
-    // Fator de Bombas
     let bombFactor = 1.0;
     if (bombs >= 5 && bombs < 10) bombFactor = 1.1;
     if (bombs >= 10) bombFactor = 1.25;
@@ -260,7 +256,7 @@ function calculateSuggestedGoal() {
     goalBankInput.value = suggestedGoal.toFixed(2);
 }
 
-// --- (NOVO) Lógica do Cronômetro de Bloqueio ---
+// --- Lógica do Cronômetro de Bloqueio ---
 function checkCooldownState() {
     if (!currentUserData || !currentUserData.lockoutEndTime) {
         if (lockoutInterval) clearInterval(lockoutInterval);
@@ -273,12 +269,10 @@ function checkCooldownState() {
     const timeLeft = currentUserData.lockoutEndTime - now;
 
     if (timeLeft > 0) {
-        // Bloqueio ativo
         startButton.disabled = true;
         lockoutOverlay.classList.remove('hidden');
         startLockoutTimer(currentUserData.lockoutEndTime);
     } else {
-        // Bloqueio expirou
         if (lockoutInterval) clearInterval(lockoutInterval);
         lockoutOverlay.classList.add('hidden');
         startButton.disabled = false;
@@ -298,21 +292,18 @@ function startLockoutTimer(endTime) {
             lockoutOverlay.classList.add('hidden');
             startButton.disabled = false;
             startButton.textContent = "Iniciar Sessão";
-            // Opcional: Tocar som ou mostrar notificação
             return;
         }
 
-        // Formata Minutos:Segundos
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
         const minStr = minutes.toString().padStart(2, '0');
         const secStr = seconds.toString().padStart(2, '0');
 
         lockoutTimerDisplay.textContent = `${minStr}:${secStr}`;
     }
 
-    updateTimer(); // Executa imediatamente
+    updateTimer(); 
     lockoutInterval = setInterval(updateTimer, 1000);
 }
 
@@ -333,14 +324,12 @@ onAuthStateChanged(auth, async (user) => {
                 appContent.classList.remove('md:ml-64'); 
                 sidebar.classList.add('hidden'); 
                 hamburgerButton.classList.add('hidden'); 
-                
                 appScreen.classList.remove('hidden');
                 loginScreen.classList.add('hidden');
             } else if (currentUserData.access === 'approved') {
                 appContent.classList.add('md:ml-64'); 
                 sidebar.classList.remove('hidden'); 
                 hamburgerButton.classList.remove('hidden'); 
-                
                 setupAppForUser();
                 showView('setupView');
                 appScreen.classList.remove('hidden');
@@ -367,7 +356,6 @@ onAuthStateChanged(auth, async (user) => {
         currentUserData = null;
         appScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
-        
         loginEmailInput.value = '';
         loginPasswordInput.value = '';
         authErrorBox.classList.add('hidden');
@@ -382,7 +370,7 @@ function setupAppForUser() {
     bankrollInput.value = lastBank.toFixed(2);
     lastBankrollDisplay.textContent = formatBRL(lastBank);
     calculateSuggestedGoal(); 
-    checkCooldownState(); // (NOVO) Verifica bloqueio ao iniciar
+    checkCooldownState(); 
     
     if (currentUserData.role === 'admin') {
         navAdminLink.classList.remove('hidden');
@@ -414,10 +402,8 @@ async function loadDashboard() {
     
     const [startY, startM, startD] = dateFilterStart.value.split('-').map(Number);
     let startDate = new Date(startY, startM - 1, startD); 
-    
     const [endY, endM, endD] = dateFilterEnd.value.split('-').map(Number);
     let endDate = new Date(endY, endM - 1, endD); 
-    
     endDate.setHours(23, 59, 59, 999); 
     
     const startTimestamp = Timestamp.fromDate(startDate);
@@ -638,7 +624,6 @@ async function checkSessionEnd(isManualStop = false) {
         
         await updateUserDoc(currentUser.uid, updateData);
         currentUserData.lastBankroll = currentBankroll;
-        // (NOVO) Se houver cooldown, atualiza o estado local e inicia o bloqueio
         if (showCooldown) {
             currentUserData.lockoutEndTime = updateData.lockoutEndTime;
             checkCooldownState();
@@ -907,22 +892,34 @@ openGameButton.addEventListener('click', () => {
     if(sessionGameLink) { window.open(sessionGameLink, '_blank'); }
 });
 
+// (CORRIGIDO E REFORÇADO) Botão "Ganhei" com cálculo automático
 wonButton.addEventListener('click', () => {
     winErrorBox.classList.add('hidden'); 
     winInputModal.classList.remove('hidden'); 
     
+    // Recupera valores atuais
     const clicks = currentClicksToGenerate;
+    const bombs = currentBombs; // Garante que pega do estado atual
     let multiplier = 1.0;
     
-    if (SPRIBE_MULTIPLIERS[currentBombs] && clicks > 0) {
+    // Verifica se existe entrada para o número de bombas atual
+    if (SPRIBE_MULTIPLIERS[bombs] && clicks > 0) {
+        // Índice do array é clicks - 1 (1 clique = index 0)
+        // Limita a 8 estrelas conforme pedido
         const index = Math.min(clicks, 8) - 1; 
-        multiplier = SPRIBE_MULTIPLIERS[currentBombs][index] || 1.0;
+        multiplier = SPRIBE_MULTIPLIERS[bombs][index];
+        
+        // Fallback de segurança se o multiplicador não existir no array
+        if (!multiplier) multiplier = 1.0;
     }
 
     const calculatedReturn = currentBetAmount * multiplier;
     
+    // Preenche o campo
     returnInput.value = calculatedReturn.toFixed(2);
-    returnInput.focus(); 
+    
+    // Pequeno delay para garantir que o DOM atualizou antes de focar (boa prática em mobile)
+    setTimeout(() => returnInput.focus(), 100);
 });
 
 lostButton.addEventListener('click', async () => {
