@@ -3,335 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Sessão Mines AI</title>
+    <title>Gestor Mines - Probabilidade Real</title>
     
     <meta name="theme-color" content="#0d47a1"/>
     <link rel="manifest" href="manifest.webmanifest">
-    
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
-    <!-- Link para o arquivo CSS -->
     <link rel="stylesheet" href="style.css">
-    
-    <!-- Carrega o Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Carrega a fonte Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
 </head>
 <body class="min-h-screen">
 
-    <!-- Tela de Carregamento Global -->
+    <!-- Loading -->
     <div id="loadingScreen" class="fixed inset-0 bg-blue-900 flex items-center justify-center z-[100]">
-        <div class="text-white text-xl font-bold animate-pulse">Carregando IA...</div>
+        <div class="text-white text-xl font-bold animate-pulse">Calculando Probabilidades...</div>
     </div>
 
-    <!-- TELA 1: Login / Cadastro -->
+    <!-- TELA 1: Login -->
     <div id="loginScreen" class="hidden min-h-screen flex items-center justify-center p-4">
         <div class="card p-6 sm:p-8 space-y-5 w-full max-w-md">
-            <!-- Formulário de Login (default) -->
             <form id="loginForm" class="space-y-4">
                 <h2 class="text-3xl font-extrabold text-center text-white">Login</h2>
                 <div>
-                    <label for="loginEmail" class="block text-sm font-medium text-blue-200 mb-2">Email:</label>
+                    <label class="block text-sm font-medium text-blue-200 mb-2">Email:</label>
                     <input type="email" id="loginEmail" class="form-input w-full" required>
                 </div>
                 <div>
-                    <label for="loginPassword" class="block text-sm font-medium text-blue-200 mb-2">Senha:</label>
+                    <label class="block text-sm font-medium text-blue-200 mb-2">Senha:</label>
                     <input type="password" id="loginPassword" class="form-input w-full" required>
                 </div>
                 <button type="submit" id="loginButton" class="btn btn-primary w-full">Entrar</button>
                 <p class="text-center text-sm text-blue-300">
-                    Não tem uma conta? <a href="#" id="showSignup" class="font-medium text-yellow-300 hover:text-yellow-200">Cadastre-se</a>
+                    Não tem conta? <a href="#" id="showSignup" class="font-medium text-yellow-300 hover:text-yellow-200">Cadastre-se</a>
                 </p>
             </form>
 
-            <!-- Formulário de Cadastro (hidden) -->
             <form id="signupForm" class="hidden space-y-4">
                 <h2 class="text-3xl font-extrabold text-center text-white">Cadastro</h2>
                 <div>
-                    <label for="signupName" class="block text-sm font-medium text-blue-200 mb-2">Nome:</label>
+                    <label class="block text-sm font-medium text-blue-200 mb-2">Nome:</label>
                     <input type="text" id="signupName" class="form-input w-full" required>
                 </div>
                 <div>
-                    <label for="signupEmail" class="block text-sm font-medium text-blue-200 mb-2">Email:</label>
+                    <label class="block text-sm font-medium text-blue-200 mb-2">Email:</label>
                     <input type="email" id="signupEmail" class="form-input w-full" required>
                 </div>
                 <div>
-                    <label for="signupPassword" class="block text-sm font-medium text-blue-200 mb-2">Senha (mínimo 6 caracteres):</label>
+                    <label class="block text-sm font-medium text-blue-200 mb-2">Senha:</label>
                     <input type="password" id="signupPassword" class="form-input w-full" required>
                 </div>
                 <button type="submit" id="signupButton" class="btn btn-primary w-full">Criar Conta</button>
                 <p class="text-center text-sm text-blue-300">
-                    Já tem uma conta? <a href="#" id="showLogin" class="font-medium text-yellow-300 hover:text-yellow-200">Login</a>
+                    Já tem conta? <a href="#" id="showLogin" class="font-medium text-yellow-300 hover:text-yellow-200">Login</a>
                 </p>
             </form>
-            
-            <!-- Caixa de Erro Login/Signup -->
             <div id="authErrorBox" class="hidden bg-red-700 text-red-100 p-3 rounded-lg text-center font-medium"></div>
         </div>
     </div>
 
-    <!-- TELA 2: Aplicativo Principal (Shell) -->
+    <!-- TELA 2: App -->
     <div id="appScreen" class="hidden min-h-screen">
-        <!-- Overlay para Sidebar (Mobile) -->
         <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden opacity-0"></div>
 
-        <!-- Sidebar (Menu Lateral) -->
         <nav id="sidebar" class="fixed top-0 left-0 w-64 h-full z-40 transform -translate-x-full md:translate-x-0">
             <div class="p-5 text-center">
-                <h2 class="text-2xl font-bold text-yellow-400">Gestor AI</h2>
+                <h2 class="text-2xl font-bold text-yellow-400">Gestor Pro</h2>
                 <p id="userEmailDisplay" class="text-sm text-blue-300 truncate"></p>
             </div>
             <ul class="flex flex-col space-y-2 p-4">
-                <li><a href="#" id="navDiario" class="nav-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-800"><svg class="icon mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> Diário de Sessão</a></li>
-                <li><a href="#" id="navDashboard" class="nav-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-800"><svg class="icon mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</a></li>
-                <li id="navAdminLink" class="hidden">
-                    <a href="#" id="navAdmin" class="nav-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-800"><svg class="icon mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Gerenciar Usuários</a>
-                </li>
+                <li><a href="#" id="navDiario" class="nav-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-800">Diário de Sessão</a></li>
+                <li><a href="#" id="navDashboard" class="nav-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-800">Dashboard Estatístico</a></li>
+                <li id="navAdminLink" class="hidden"><a href="#" id="navAdmin" class="nav-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-800">Admin</a></li>
             </ul>
             <div class="absolute bottom-0 w-full p-4">
-                <a href="#" id="navSair" class="nav-link flex items-center p-3 rounded-lg text-red-400 hover:bg-blue-800"><svg class="icon mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Sair</a>
+                <a href="#" id="navSair" class="nav-link flex items-center p-3 rounded-lg text-red-400 hover:bg-blue-800">Sair</a>
             </div>
         </nav>
 
-        <!-- Conteúdo Principal -->
         <main id="appContent" class="md:ml-64 transition-all duration-300">
             <header class="bg-blue-900 md:bg-transparent shadow-md md:shadow-none p-4">
-                <button id="hamburgerButton" class="md:hidden text-white text-2xl">
-                    &#9776; <!-- Hamburger Icon -->
-                </button>
-                <h1 id="viewTitle" class="text-2xl font-bold text-white text-center md:text-left md:hidden">Diário de Sessão</h1>
+                <button id="hamburgerButton" class="md:hidden text-white text-2xl">&#9776;</button>
+                <h1 id="viewTitle" class="text-2xl font-bold text-white text-center md:text-left md:hidden">Configuração</h1>
             </header>
 
             <div class="p-4">
-                <!-- TELA 2A: Diário de Sessão (Setup) -->
-                <div id="setupView" class="app-view card p-6 sm:p-8 space-y-5 sm:space-y-7 mx-auto max-w-xl">
-                    <h1 class="text-3xl sm:text-4xl font-extrabold text-center text-white mb-1 sm:mb-2">
-                        Configurar IA
-                    </h1>
-                    <div class="space-y-4 sm:space-y-5 mt-4 sm:mt-6">
-                        <div>
-                            <label for="bankroll" class="block text-sm font-medium text-blue-200 mb-2 flex items-center">
-                                <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 
-                                Banca Inicial:
-                            </label>
-                            <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-300 text-lg">R$</span><input type="number" id="bankroll" min="1" class="form-input w-full pl-12" placeholder="100,00"></div>
-                            <p class="text-xs text-blue-300 mt-1 pl-1">Sua última banca foi <strong id="lastBankrollDisplay">R$ 0,00</strong>.</p>
-                        </div>
-                        <div>
-                            <label for="goalBank" class="block text-sm font-medium text-blue-200 mb-2 flex items-center">
-                                <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> 
-                                Meta de Ganhos (Sugestão):
-                            </label>
-                            <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-300 text-lg">R$</span><input type="number" id="goalBank" min="1" class="form-input w-full pl-12" placeholder="150,00"></div>
-                        </div>
+                <!-- SETUP -->
+                <div id="setupView" class="app-view card p-6 sm:p-8 space-y-5 mx-auto max-w-xl">
+                    <h1 class="text-3xl font-extrabold text-center text-white mb-2">Nova Sessão</h1>
+                    
+                    <div class="bg-blue-900/50 p-4 rounded-lg border border-blue-700 text-sm text-blue-200">
+                        <p><strong>Modo Seguro:</strong> O sistema calculará a aposta ideal baseada na probabilidade matemática da jogada. Sem Martingale.</p>
+                    </div>
 
-                        <!-- Nova Seção de Configuração de Risco e Gale -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <div>
-                                <label for="sessionRiskLevel" class="block text-sm font-medium text-blue-200 mb-2">Stop-Loss (Risco):</label>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-blue-200 mb-2">Banca Atual:</label>
+                            <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-300 text-lg">R$</span><input type="number" id="bankroll" class="form-input w-full pl-12" placeholder="100,00"></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-blue-200 mb-2">Stop Loss:</label>
                                 <select id="sessionRiskLevel" class="form-input w-full text-sm">
-                                    <option value="0.8">Conservador (20%)</option>
-                                    <option value="0.7" selected>Moderado (30%)</option>
-                                    <option value="0.5">Agressivo (50%)</option>
+                                    <option value="0.9">Rígido (10%)</option>
+                                    <option value="0.8" selected>Padrão (20%)</option>
+                                    <option value="0.7">Flexível (30%)</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="martingaleFactor" class="block text-sm font-medium text-blue-200 mb-2">Recuperação (Gale):</label>
-                                <select id="martingaleFactor" class="form-input w-full text-sm">
-                                    <option value="1.0">Desativado (1x)</option>
-                                    <option value="1.5">Leve (1.5x)</option>
-                                    <option value="2.0" selected>Padrão (2.0x)</option>
-                                    <option value="2.5">Agressivo (2.5x)</option>
+                                <label class="block text-sm font-medium text-blue-200 mb-2">Perfil de Aposta:</label>
+                                <select id="bettingProfile" class="form-input w-full text-sm">
+                                    <option value="conservative">Defensivo (0.5% - 2%)</option>
+                                    <option value="balanced" selected>Equilibrado (1% - 4%)</option>
+                                    <option value="aggressive">Alavancado (2% - 6%)</option>
                                 </select>
                             </div>
                         </div>
 
                         <div>
-                            <label for="bombCount" class="block text-sm font-medium text-blue-200 mb-2 flex items-center">
-                                <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line><line x1="14.12" y1="9.88" x2="9.88" y2="14.12"></line></svg> 
-                                Bombas no Tabuleiro:
-                            </label>
+                            <label class="block text-sm font-medium text-blue-200 mb-2">Número de Bombas:</label>
                             <select id="bombCount" class="form-input w-full">
-                                <script>for (let i = 1; i <= 20; i++) { document.write(`<option value="${i}" ${i === 3 ? 'selected' : ''}>${i} ${i === 1 ? 'bomba' : 'bombas'}</option>`); }</script>
+                                <script>for (let i = 1; i <= 20; i++) { document.write(`<option value="${i}" ${i === 3 ? 'selected' : ''}>${i} Minas</option>`); }</script>
                             </select>
                         </div>
+                        
                         <div>
-                            <label for="strategy" class="block text-sm font-medium text-blue-200 mb-2 flex items-center">
-                                <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> 
-                                Estratégia Inicial:
-                            </label>
+                            <label class="block text-sm font-medium text-blue-200 mb-2">Estratégia de Cliques:</label>
                             <select id="strategy" class="form-input w-full">
-                                <option value="low">Baixo Risco (1-2 cliques)</option>
-                                <option value="balanced" selected>Equilibrada (3-4 cliques)</option>
-                                <option value="high">Alto Risco (5+ cliques)</option>
+                                <option value="fixed_1">Sniper (Apenas 1 Clique - Mais Seguro)</option>
+                                <option value="low">Curto (1-2 Cliques)</option>
+                                <option value="balanced" selected>Médio (3-4 Cliques)</option>
+                                <option value="high">Longo (5+ Cliques)</option>
                             </select>
                         </div>
-                        <div>
-                            <label for="gameLink" class="block text-sm font-medium text-blue-200 mb-2 flex items-center">
-                                <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> 
-                                Link do Jogo:
-                            </label>
-                            <input type="url" id="gameLink" class="form-input w-full" placeholder="Cole o link do seu jogo aqui...">
+
+                        <div class="hidden">
+                             <input type="url" id="gameLink" class="form-input w-full">
                         </div>
                     </div>
-                    <button id="startButton" class="btn btn-primary w-full mt-6 sm:mt-8 shadow-lg shadow-red-900/50">Iniciar IA</button>
-                    <div id="errorBox" class="hidden bg-red-700 text-red-100 p-3 sm:p-4 rounded-lg text-center font-medium"></div>
+                    <button id="startButton" class="btn btn-primary w-full mt-6">Calcular Sessão</button>
+                    <div id="errorBox" class="hidden bg-red-700 text-red-100 p-3 rounded-lg text-center font-medium"></div>
                 </div>
 
-                <!-- TELA 2B: Jogo em Andamento -->
-                <div id="gameView" class="app-view hidden card p-4 sm:p-8 space-y-3 sm:space-y-5 mx-auto max-w-xl border-yellow-500/30 border">
-                    <button id="openGameButton" class="hidden btn btn-secondary w-full"><svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> Abrir Jogo</button>
-                    <div class="space-y-3">
-                        <div>
-                            <div class="flex justify-between items-center text-sm mb-1"><span class="font-medium text-blue-200">Meta da Sessão:</span><span class="font-bold text-green-300" id="goalProgressText"></span></div>
-                            <div class="progress-bar-bg w-full"><div id="goalProgressBar" class="progress-bar progress-bar-gain h-3" style="width: 0%"></div></div>
+                <!-- GAME -->
+                <div id="gameView" class="app-view hidden card p-4 sm:p-8 space-y-4 mx-auto max-w-xl border-blue-500 border">
+                    <div class="flex justify-between items-center bg-blue-900 p-3 rounded-lg shadow-inner">
+                        <div class="text-left">
+                            <span class="text-xs text-blue-300 uppercase tracking-wider">Banca Atual</span>
+                            <div id="liveBankrollDisplay" class="text-xl font-bold text-white">R$ 0,00</div>
                         </div>
-                        <div>
-                            <div class="flex justify-between items-center text-sm mb-1"><span class="font-medium text-blue-200">Limite de Perda:</span><span class="font-bold text-red-300" id="lossProgressText"></span></div>
-                            <div class="progress-bar-bg w-full"><div id="lossProgressBar" class="progress-bar progress-bar-loss h-3" style="width: 0%"></div></div>
+                        <div class="text-right">
+                            <span class="text-xs text-blue-300 uppercase tracking-wider">Meta</span>
+                            <div id="liveGoalDisplay" class="text-xl font-bold text-green-400">R$ 0,00</div>
                         </div>
-                    </div>
-                    <hr class="border-blue-700 my-3 sm:my-6">
-                    <div class="text-center space-y-2 sm:space-y-3">
-                        <h2 class="text-xl sm:text-2xl font-extrabold text-white" id="strategyTitle"></h2>
-                        <div class="grid grid-cols-2 gap-2 sm:gap-4 text-blue-200 font-medium text-base sm:text-lg">
-                            <div class="bg-blue-800 p-2 rounded-lg"><div class="text-xs sm:text-sm text-blue-300">Nº Cliques</div><div id="clickCount" class="text-xl sm:text-2xl font-bold text-white"></div></div>
-                            <div class="bg-blue-800 p-2 rounded-lg"><div class="text-xs sm:text-sm text-blue-300">Confiança AI</div><div id="successChance" class="text-xl sm:text-2xl font-bold"></div></div>
-                        </div>
-                        <div class="bg-gradient-to-r from-blue-900 to-blue-800 rounded-lg p-2 sm:p-4 mt-2 sm:mt-4 border border-yellow-500/50 shadow-lg">
-                            <p class="text-blue-200 font-medium text-base sm:text-lg">Aposta Sugerida (Gale):</p><strong class="text-yellow-300 text-3xl sm:text-4xl font-extrabold block tracking-wider" id="suggestedBet"></strong>
-                        </div>
-                    </div>
-                    <div id="gameBoard" class="grid grid-cols-5 gap-2 sm:gap-3 max-w-xs mx-auto bg-blue-900/50 p-3 rounded-xl"></div>
-                    <p class="text-center text-xs sm:text-sm text-yellow-300 font-medium my-2 sm:mb-4 animate-pulse">Siga o padrão da IA e informe o resultado:</p>
-                    <div class="grid grid-cols-2 gap-3 sm:gap-4"><button id="lostButton" class="btn btn-red"><svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Perdi</button><button id="wonButton" class="btn btn-green"><svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Ganhei</button></div>
-                    <button id="backButton" class="btn btn-secondary w-full">Parar Sessão</button>
-                </div>
-
-                <!-- TELA 2C: Dashboard -->
-                <div id="dashboardView" class="app-view hidden card p-4 sm:p-8 space-y-5 mx-auto max-w-3xl">
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white text-center">Meu Dashboard</h2>
-                    
-                    <!-- Filtros -->
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <div class="flex-1">
-                            <label for="dateFilterPresets" class="block text-sm font-medium text-blue-200 mb-2">Período:</label>
-                            <select id="dateFilterPresets" class="form-input w-full">
-                                <option value="7">Últimos 7 dias</option>
-                                <option value="30" selected>Últimos 30 dias</option>
-                                <option value="90">Últimos 90 dias</option>
-                                <option value="custom">Período Personalizado</option>
-                            </select>
-                        </div>
-                        <div class="flex-1">
-                            <label for="dateFilterStart" class="block text-sm font-medium text-blue-200 mb-2">De:</label>
-                            <input type="date" id="dateFilterStart" class="form-input w-full">
-                        </div>
-                        <div class="flex-1">
-                            <label for="dateFilterEnd" class="block text-sm font-medium text-blue-200 mb-2">Até:</label>
-                            <input type="date" id="dateFilterEnd" class="form-input w-full">
-                        </div>
-                        <button id="loadDashboardButton" class="btn btn-primary mt-auto">Carregar</button>
                     </div>
 
-                    <!-- Indicadores (KPIs) -->
-                    <div id="dashboardLoading" class="hidden text-center text-blue-200 p-4">Carregando dados...</div>
-                    <div id="dashboardStats" class="hidden space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="kpi-card">
-                                <div class="kpi-title">Lucro / Perda Total</div>
-                                <div class="kpi-value" id="kpiTotalProfit">R$ 0,00</div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs text-blue-300"><span>Stop Loss</span><span>Meta</span></div>
+                        <div class="progress-bar-bg w-full h-2 bg-blue-900 rounded-full overflow-hidden">
+                            <div id="sessionProgressBar" class="h-full bg-gradient-to-r from-red-500 via-yellow-400 to-green-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+
+                    <hr class="border-blue-800 opacity-50">
+
+                    <div class="text-center space-y-3">
+                        <div class="flex justify-center items-center space-x-2 mb-2">
+                            <span class="text-blue-200 text-sm">Probabilidade Matemática:</span>
+                            <span id="mathProbability" class="bg-blue-700 px-2 py-1 rounded text-xs font-bold text-white">0%</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-blue-800/50 p-3 rounded-lg border border-blue-700">
+                                <div class="text-xs text-blue-300 uppercase">Entrada Sugerida</div>
+                                <div id="suggestedBet" class="text-2xl font-extrabold text-yellow-300">R$ 0,00</div>
                             </div>
-                            <div class="kpi-card">
-                                <div class="kpi-title">Total Apostado</div>
-                                <div class="kpi-value" id="kpiTotalBet">R$ 0,00</div>
-                            </div>
-                            <div class="kpi-card">
-                                <div class="kpi-title">Win Rate (Jogadas)</div>
-                                <div class="kpi-value" id="kpiWinRate">0%</div>
+                             <div class="bg-blue-800/50 p-3 rounded-lg border border-blue-700">
+                                <div class="text-xs text-blue-300 uppercase">Retorno Potencial</div>
+                                <div id="potentialReturn" class="text-2xl font-extrabold text-green-300">R$ 0,00</div>
                             </div>
                         </div>
                         
-                        <h3 class="text-xl font-bold text-white pt-4">Análise de Estratégia</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="kpi-card">
-                                <div class="kpi-title">Melhor Estratégia</div>
-                                <div class="kpi-value" id="kpiBestStrategy">N/A</div>
-                                <div class="text-gain" id="kpiBestStrategyProfit"></div>
-                            </div>
-                            <div class="kpi-card">
-                                <div class="kpi-title">Pior Estratégia</div>
-                                <div class="kpi-value" id="kpiWorstStrategy">N/A</div>
-                                <div class="text-loss" id="kpiWorstStrategyLoss"></div>
-                            </div>
-                            <div class="kpi-card">
-                                <div class="kpi-title">Jogadas Feitas</div>
-                                <div class="kpi-value" id="kpiTotalPlays">0</div>
-                            </div>
+                        <p class="text-sm text-blue-200 mt-2">Tente buscar as células abaixo:</p>
+                    </div>
+
+                    <div id="gameBoard" class="grid grid-cols-5 gap-2 max-w-[280px] mx-auto p-2"></div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button id="lostButton" class="btn btn-red w-full opacity-90 hover:opacity-100">❌ Loss</button>
+                        <button id="wonButton" class="btn btn-green w-full opacity-90 hover:opacity-100">✅ Win</button>
+                    </div>
+                    <button id="backButton" class="btn btn-secondary w-full mt-2 text-sm py-2">Encerrar / Ajustar</button>
+                </div>
+
+                <!-- DASHBOARD -->
+                <div id="dashboardView" class="app-view hidden card p-4 sm:p-8 space-y-5 mx-auto max-w-3xl">
+                    <h2 class="text-2xl font-bold text-white mb-4">Estatísticas</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div class="kpi-card">
+                            <div class="kpi-title">Resultado Líquido</div>
+                            <div class="kpi-value" id="kpiTotalProfit">R$ 0,00</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">Volume Apostado</div>
+                            <div class="kpi-value" id="kpiTotalBet">R$ 0,00</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">Assertividade</div>
+                            <div class="kpi-value" id="kpiWinRate">0%</div>
                         </div>
                     </div>
-                    <p id="noDashboardData" class="text-center text-blue-300 p-4 hidden">Nenhuma jogada encontrada para este período.</p>
-                </div>
-
-                <!-- TELA 2D: Gerenciar Usuários (Admin) -->
-                <div id="adminView" class="app-view hidden card p-4 sm:p-8 space-y-5 mx-auto max-w-3xl">
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white text-center">Gerenciar Usuários</h2>
-                    <div class="overflow-x-auto">
-                        <table class="data-table">
-                            <thead><tr><th>Email</th><th>Nome</th><th>Status</th><th>Ação</th></tr></thead>
-                            <tbody id="adminUserTableBody"></tbody>
-                        </table>
-                        <p id="noUsers" class="text-center text-blue-300 p-4">Nenhum usuário cadastrado.</p>
+                    <div class="flex gap-2">
+                        <input type="date" id="dateFilterStart" class="form-input w-1/2 text-sm">
+                        <input type="date" id="dateFilterEnd" class="form-input w-1/2 text-sm">
                     </div>
+                    <button id="loadDashboardButton" class="btn btn-primary w-full">Atualizar Dados</button>
+                    <p id="noDashboardData" class="text-center text-blue-300 text-sm mt-2 hidden">Sem dados.</p>
                 </div>
 
-                <!-- TELA 2E: Acesso Pendente -->
-                <div id="pendingView" class="app-view hidden card p-6 sm:p-8 space-y-5 mx-auto max-w-xl text-center">
-                    <svg class="w-16 h-16 text-yellow-400 mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Acesso Pendente</h2>
-                    <p class="text-lg text-blue-200">Sua conta foi criada com sucesso, mas está aguardando aprovação do administrador.</p>
-                    <p class="text-blue-300">Por favor, entre em contato com o administrador para liberar seu acesso.</p>
-                    <button id="pendingLogoutButton" class="btn btn-red w-full mt-4">Sair</button>
+                <!-- ADMIN & PENDING Views (Simplificadas para manter foco) -->
+                <div id="adminView" class="app-view hidden card p-4 space-y-4 mx-auto max-w-3xl">
+                    <h2 class="text-xl font-bold text-white">Admin</h2>
+                    <table class="w-full text-sm text-left text-blue-200">
+                        <tbody id="adminUserTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="pendingView" class="app-view hidden card p-8 text-center mx-auto max-w-md">
+                    <h2 class="text-xl font-bold text-white">Aguardando Aprovação</h2>
+                    <button id="pendingLogoutButton" class="btn btn-red mt-4">Sair</button>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- MODAIS (flutuam sobre tudo) -->
-    
-    <!-- TELA 3: Fim da Sessão (Modal) -->
-    <div id="sessionEndScreen" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="card p-6 sm:p-8 text-center space-y-4 max-w-sm w-full">
-            <h2 id="sessionEndTitle" class="text-3xl sm:text-4xl font-extrabold text-white"></h2>
-            <div id="sessionEndIcon" class="text-7xl"></div>
-            <p id="sessionEndMessage" class="text-lg sm:text-xl text-blue-200"></p>
-            <p class="text-base sm:text-lg font-medium text-white">Banca Final: <strong id="sessionEndBank" class="text-yellow-300"></strong></p>
-            <p id="cooldownMessage" class="hidden text-yellow-300 font-semibold text-base sm:text-lg">App bloqueado por 1 hora.</p>
-            <button id="restartButton" class="btn btn-primary w-full">Entendido</button>
+    <!-- Modais -->
+    <div id="sessionEndScreen" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
+        <div class="card p-6 text-center space-y-4 max-w-sm w-full border border-blue-500">
+            <h2 id="sessionEndTitle" class="text-2xl font-bold text-white"></h2>
+            <p id="sessionEndMessage" class="text-blue-200"></p>
+            <p class="text-white">Banca Final: <strong id="sessionEndBank" class="text-yellow-300"></strong></p>
+            <button id="restartButton" class="btn btn-primary w-full">Nova Sessão</button>
         </div>
     </div>
     
-    <!-- TELA 4: Inserir Ganho (Modal) -->
-    <div id="winInputModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-40">
-        <div class="card p-6 sm:p-8 text-center space-y-4 max-w-sm w-full">
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Parabéns!</h2>
-            <p class="text-blue-200">Insira o **VALOR TOTAL** que você recebeu (retorno).</p>
-            <div>
-                <label for="returnInput" class="block text-sm font-medium text-blue-200 mb-2">Valor Total Recebido (Ex: 4.20):</label>
-                <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-4 text-blue-300 text-lg">R$</span><input type="number" id="returnInput" class="form-input w-full pl-12" placeholder="0.00"></div>
-                <div id="winErrorBox" class="hidden text-red-400 text-sm mt-2">Por favor, insira um valor positivo.</div>
+    <div id="winInputModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-40">
+        <div class="card p-6 text-center space-y-4 max-w-sm w-full">
+            <h3 class="text-xl font-bold text-white">Confirmar Vitória</h3>
+            <p class="text-sm text-blue-200">O sistema calculou um retorno de:</p>
+            <div class="text-3xl font-bold text-green-400 mb-2" id="calcReturnDisplay">R$ 0.00</div>
+            <input type="hidden" id="returnInput"> <!-- Hidden, automatico agora -->
+            <div class="grid grid-cols-2 gap-3">
+                <button id="cancelWinButton" class="btn btn-secondary text-sm">Cancelar</button>
+                <button id="confirmWinButton" class="btn btn-green text-sm">Confirmar</button>
             </div>
-            <div class="grid grid-cols-2 gap-3 pt-2"><button id="cancelWinButton" class="btn btn-secondary">Cancelar</button><button id="confirmWinButton" class="btn btn-green">Confirmar</button></div>
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="register-sw.js"></script>
     <script type="module" src="app.js"></script>
 </body>
